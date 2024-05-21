@@ -11,11 +11,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "importHelpers": true,
-    "typeRoots": ["node_modules/@types"],
+    "typeRoots": ["node_modules/@types", "./"],
     "types": ["node"],
     "sourceMap": true,
     "strictPropertyInitialization": false
   },
-  "include": ["./", "./config.json", "./locales/*.json", "./sounds/*.mp3"],
+  "include": ["./src", "./discord-rpc.d.ts", "./config.json", "./locales/*.json", "./sounds/*.mp3"],
   "exclude": ["/.github", "./dist", "./node_modules"]
 }

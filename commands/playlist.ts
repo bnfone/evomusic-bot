@@ -1,7 +1,6 @@
 import { DiscordGatewayAdapterCreator, joinVoiceChannel } from "@discordjs/voice";
 import {
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionsBitField,
   SlashCommandBuilder,
   TextChannel,
@@ -15,7 +14,6 @@ import { convertToYouTubeLink } from '../utils/musicLinkConverter';
 import axios from 'axios';
 import { Playlist } from "../structs/Playlist";
 import { processAppleMusicPlaylist } from '../utils/appleMusicUtils';
-import { Config } from '../interfaces/Config';  // Pfad zur config.ts Datei anpassen
 import { config } from '../utils/config';  // Pfad zur config.json Datei anpassen
 
 // Verwenden Sie die Werte aus der Konfiguration
@@ -134,7 +132,14 @@ async function processSong(songDetail: any, interaction: ChatInputCommandInterac
       return;
     }
 
-    const song = new Song({ title: `${songDetail.title} - ${songDetail.artist}`, url: youtubeLink, duration: 0 });
+    const song = new Song({
+      title: `${songDetail.title} - ${songDetail.artist}`,
+      url: youtubeLink,
+      duration: 0,
+      id: youtubeLink.split('=')[1], // Extrahieren Sie die YouTube-Video-ID als Beispiel
+      author: songDetail.artist
+    });
+
     let queue = bot.queues.get(interaction.guild!.id);
 
     if (!queue) {

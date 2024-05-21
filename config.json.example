@@ -6,5 +6,6 @@
   "PRUNING": false,
   "LOCALE": "en",
   "STAY_TIME": 90,
-  "DEFAULT_VOLUME": 50
+  "DEFAULT_VOLUME": 50,
+  "CLIENT_ID": ""
 }

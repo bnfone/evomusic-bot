@@ -31,6 +31,7 @@ import { i18n } from "../utils/i18n";
 import { canModifyQueue } from "../utils/queue";
 import { Song } from "./Song";
 import { safeReply } from "../utils/safeReply";
+import * as rpc from 'discord-rpc';
 
 const wait = promisify(setTimeout);
 
@@ -58,6 +59,7 @@ export class MusicQueue {
    * a stable connection for audio streaming.
    * @param options
    */
+  public rpcClient: rpc.Client;
   public constructor(options: QueueOptions) {
     Object.assign(this, options);
 
@@ -135,6 +137,8 @@ export class MusicQueue {
 
       this.processQueue();
     });
+    this.rpcClient = new rpc.Client({ transport: 'ipc' });
+    this.rpcClient.login({ clientId: config.CLIENT_ID }).catch(console.error);
   }
 
   public enqueue(...songs: Song[]) {
@@ -154,6 +158,8 @@ export class MusicQueue {
     this.player.stop();
 
     !config.PRUNING && this.textChannel.send(i18n.__("play.queueEnded")).catch(console.error);
+
+    this.rpcClient.clearActivity(); // Rich Presence deaktivieren
 
     if (this.waitTimeout !== null) return;
 
@@ -316,9 +322,9 @@ export class MusicQueue {
    */
   private async sendPlayingMessage(newState: AudioPlayerPlayingState) {
     const song = (newState.resource as AudioResource<Song>).metadata;
-
+  
     let playingMessage: Message;
-
+  
     try {
       playingMessage = await this.textChannel.send({
         content: song.startMessage(),
@@ -329,29 +335,29 @@ export class MusicQueue {
       if (error instanceof Error) this.textChannel.send(error.message);
       return;
     }
-
+  
     const filter = (i: Interaction) => i.isButton() && i.message.id === playingMessage.id;
-
+  
     const collector = playingMessage.createMessageComponentCollector({
       filter,
       time: song.duration > 0 ? song.duration * 1000 : 60000
     });
-
+  
     collector.on("collect", async (interaction) => {
       if (!interaction.isButton()) return;
       if (!this.songs) return;
-
+  
       const handler = this.commandHandlers.get(interaction.customId);
-
+  
       if (["skip", "stop"].includes(interaction.customId)) collector.stop();
-
+  
       if (handler) await handler.call(this, interaction);
     });
-
+  
     collector.on("end", () => {
       // Remove the buttons when the song ends
       playingMessage.edit({ components: [] }).catch(console.error);
-
+  
       // Delete the message if pruning is enabled
       if (config.PRUNING) {
         setTimeout(() => {
@@ -359,8 +365,27 @@ export class MusicQueue {
         }, 3000);
       }
     });
-
+  
+    // URL des Thumbnails
+    const thumbnailUrl = `https://img.youtube.com/vi/${song.id}/hqdefault.jpg`;
+  
+    // Aktualisiere Rich Presence
+    this.rpcClient.setActivity({
+      details: `Listening to ${song.title}`,
+      state: `by ${song.author}`,
+      startTimestamp: Date.now(),
+      largeImageKey: thumbnailUrl,
+      largeImageText: song.title,
+      smallImageKey: bot.client.user!.displayAvatarURL(),
+      smallImageText: bot.client.user!.username,
+      instance: false,
+      buttons: [
+        { label: 'Listen on Spotify', url: `https://open.spotify.com/search/${encodeURIComponent(song.title)}` },
+        { label: `About ${bot.client.user!.username}`, url: `https://github.com/bnfone/DiscordMusicBot-evobot` }
+      ]
+    });
   }
+  
 
   // Hinzufügen der isPlaying Eigenschaft
   get isPlaying(): boolean {

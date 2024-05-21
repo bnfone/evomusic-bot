@@ -9,17 +9,23 @@ export interface SongData {
   url: string;
   title: string;
   duration: number;
+  id: string;
+  author: string;
 }
 
 export class Song {
   public readonly url: string;
   public readonly title: string;
   public readonly duration: number;
+  public readonly id: string;
+  public readonly author: string;
 
-  public constructor({ url, title, duration }: SongData) {
+  public constructor({ url, title, duration, id, author }: SongData) {
     this.url = url;
     this.title = title;
     this.duration = duration;
+    this.id = id;
+    this.author = author;
   }
 
   public static async from(url: string = "", search: string = "") {
@@ -33,7 +39,9 @@ export class Song {
       return new this({
         url: songInfo.video_details.url,
         title: songInfo.video_details.title,
-        duration: parseInt(songInfo.video_details.durationInSec)
+        duration: parseInt(songInfo.video_details.durationInSec),
+        id: songInfo.video_details.id,
+        author: songInfo.video_details.channel.name
       });
     } else {
       const result = await youtube.searchOne(search);
@@ -55,7 +63,9 @@ export class Song {
       return new this({
         url: songInfo.video_details.url,
         title: songInfo.video_details.title,
-        duration: parseInt(songInfo.video_details.durationInSec)
+        duration: parseInt(songInfo.video_details.durationInSec),
+        id: songInfo.video_details.id,
+        author: songInfo.video_details.channel.name
       });
     }
   }
