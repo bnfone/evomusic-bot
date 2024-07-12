@@ -68,3 +68,5 @@ config.json
 
 # MacOS
 .DS_Store
+
+build-and-start-docker.sh
