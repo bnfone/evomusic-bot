@@ -109,7 +109,7 @@ This fork supports additional locales. For a complete list, please refer to the 
 2. Create your feature branch: `git checkout -b my-new-feature`
 3. Commit your changes: `cz` OR `npm run commit` (Avoid using `git commit` directly)
 4. Push to the branch: `git push origin my-new-feature`
-5. Submit a pull request to the original repository and mention that it's for the forked version
+5. Submit a pull request to the original repository and mention that it's for the forked version.
 
 --- 
 **Note:** This fork is maintained separately from the original  [EvoBot](https://github.com/eritislami/evobot). For changes specific to this fork, ensure to target the correct repository when submitting pull requests or issues.
