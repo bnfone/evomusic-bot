@@ -48,6 +48,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
+        id: build-and-push
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -58,17 +59,17 @@ jobs:
 
       - name: Tag as latest for releases
         if: github.event_name == 'release'
+        env:
+          DOCKER_CLI_ABI: "1.42"
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest ${{ steps.meta.outputs.tags }}
 
       - name: Tag as experimental for pull requests
         if: github.event_name == 'pull_request'
+        env:
+          DOCKER_CLI_ABI: "1.42"
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:experimental
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:experimental
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:experimental ${{ steps.meta.outputs.tags }}
 
       - name: Image digest
         run: echo ${{ steps.build-and-push.outputs.digest }}
