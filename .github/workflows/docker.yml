@@ -2,7 +2,7 @@ name: Docker Hub
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   release:
     types: [published]
 
