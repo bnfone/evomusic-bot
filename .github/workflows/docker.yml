@@ -1,15 +1,13 @@
 name: Docker Hub
 
 on:
+  pull_request:
+    branches: [ main ]
   release:
     types: [published]
-  pull_request:
-    types: [opened, synchronize]
 
 env:
-  # Use docker.io for Docker Hub if empty
   REGISTRY: docker.io
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -22,81 +20,53 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
-      # QEMU for emulation
+
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v1
 
-      # Docker Buildx for creating multi arch docker images
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v1
 
-      # Login against a Docker registry
       - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Extract metadata (tags, labels) for Docker
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v3
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=release,latest=true
-            type=ref,event=release,format=semver,pattern={{version}}
-            type=ref,event=pull_request,prefix=pr-,value=${{ github.event.number }}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
-      # Build and push Docker image
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v2
         with:
           context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-  experimental-build:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      packages: write
+      - name: Tag as latest for releases
+        if: github.event_name == 'release'
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Tag as experimental for pull requests
+        if: github.event_name == 'pull_request'
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:experimental
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:experimental
 
-      # QEMU for emulation
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      # Docker Buildx for creating multi arch docker images
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Login against a Docker registry
-      - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Extract metadata (tags, labels) for Docker
-      - name: Extract Docker metadata for PR
-        id: meta_pr
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: pr-${{ github.event.number }}
-
-      # Build and push Docker image for PR
-      - name: Build and push Docker image for PR
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta_pr.outputs.tags }}
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
