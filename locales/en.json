@@ -47,7 +47,9 @@
 	"pause": {
 		"description": "Pause the currently playing music",
 		"errorNotQueue": "There is nothing playing.",
-		"result": "<@{author}> ⏸ paused the music."
+		"result": "<@{author}> ⏸ paused the music.",
+		"paused": "pause.paused",
+		"unpaused": "pause.unpaused"
 	},
 	"ping": {
 		"description": "Show the bot's average ping",
@@ -78,7 +80,8 @@
 		"songNotFound": "Audio Not Found",
 		"songAccessErr": "Video is age restricted, private or unavailable",
 		"errorNoResults": "No results found for {url}",
-		"errorInvalidURL": "Invalid URL, please try a search or youtube url"
+		"errorInvalidURL": "Invalid URL, please try a search or youtube url",
+		"startedPlayingRadio": "play.startedPlayingRadio"
 	},
 	"playlist": {
 		"description": "Play a playlist from youtube",
@@ -181,5 +184,12 @@
 	"Invite": "Invite",
 	"playnext": {
 		"description": "Plays a song after the current song :)"
+	},
+	"radio": {
+		"description": "radio.description",
+		"stationDescription": "radio.stationDescription",
+		"result": "radio.result",
+		"groupDescription": "radio.groupDescription",
+		"errorInvalidStation": "radio.errorInvalidStation"
 	}
 }
