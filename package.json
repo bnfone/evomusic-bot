@@ -34,7 +34,7 @@
     "string-progressbar": "^1.0.4",
     "tar": "^6.2.1",
     "ws": "^8.18.0",
-    "youtube-dl-exec": "^3.0.2",
+    "youtube-dl-exec": "^3.0.7",
     "youtube-sr": "^4.3.11"
   },
   "devDependencies": {
@@ -44,13 +44,13 @@
     "@types/tough-cookie": "^4.0.5",
     "braces": "^3.0.3",
     "cz-conventional-changelog": "^3.0.1",
-    "nodemon": "^3.1.3",
+    "nodemon": "^3.1.4",
     "prettier": "^3.2.5",
     "ts-node": "^10.9.2"
   },
   "optionalDependencies": {
     "@discordjs/opus": "^0.9.0",
-    "libsodium-wrappers": "^0.7.13",
+    "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
     "sodium-native": "^4.1.1",
     "tweetnacl": "^1.0.3"
