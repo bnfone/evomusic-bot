@@ -3,7 +3,7 @@ name: Publish Docker Image
 on:
   push:
     branches:
-      - main # Trigger für Development-Builds
+      - master # Trigger für Development-Builds
   release:
     types: [published] # Trigger für Release-Builds
 
