@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./img/bnfoneMusicBotLogo.png" height="90px" />
+  <img src="./img/evomusic.png" height="90px" />
 </p>
 
-<h1 align="center"> bnfoneMusic - A Discord Music Bot</h1>
+<h1 align="center"> EvoMusic - A Discord Music Bot</h1>
 
 > This is a fork of the original [EvoBot](https://github.com/eritislami/evobot), a Discord Music Bot built with TypeScript, discord.js & uses Command Handler from [discordjs.guide](https://discordjs.guide). This version includes enhancements and additional features to improve user experience and functionality.
 
