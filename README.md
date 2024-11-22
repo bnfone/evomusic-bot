@@ -114,4 +114,3 @@ This fork supports additional locales. For a complete list, please refer to the 
 --- 
 **Note:** This fork is maintained separately from the original  [EvoBot](https://github.com/eritislami/evobot). For changes specific to this fork, ensure to target the correct repository when submitting pull requests or issues.
 
-.
