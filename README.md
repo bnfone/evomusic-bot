@@ -6,18 +6,15 @@
 
 > This is a fork of the original [EvoBot](https://github.com/eritislami/evobot), a Discord Music Bot built with TypeScript, discord.js & uses Command Handler from [discordjs.guide](https://discordjs.guide). This version includes enhancements and additional features to improve user experience and functionality.
 
-![Node build](https://github.com/bnfone/DiscordMusicBot-evobot/actions/workflows/node.yml/badge.svg)
-![Docker build](https://github.com/bnfone/DiscordMusicBot-evobot/actions/workflows/docker.yml/badge.svg)
+[![Publish Docker Image](https://github.com/bnfone/discord-bot-evomusic/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/bnfone/discord-bot-evomusic/actions/workflows/publish-docker.yml)
 
 
 ## 🌟 Quickstart & Support
 
 Thank you for your support in helping us develop and maintain this bot. We greatly appreciate your understanding and contributions.
 
-**⚠️ Important Note:** We no longer offer hosting services. Thank you for your understanding and continued support!
-
-If you would still like to support us, you can make a donation here:
-[Donate 💖](https://donate.stripe.com/6oE2bm9ajcU49A43cg)
+If you like this project, consider making a donation.
+[Donate 💖](https://bnf.one/devdonations)
 
 You can still choose the amount you wish to donate; every contribution is welcome and appreciated. Thank you for your generosity!
 
@@ -32,8 +29,8 @@ You can still choose the amount you wish to donate; every contribution is welcom
 ## 🛠️ Getting Started
 
 ```sh
-git clone https://github.com/bnfone/DiscordMusicBot-evobot.git  # Clone the forked repository
-cd DiscordMusicBot-evobot
+git clone https://github.com/bnfone/discord-bot-evomusic  # Clone the forked repository
+cd discord-bot-evomusic
 npm install
 ```
 
@@ -60,10 +57,10 @@ Copy or Rename `config.json.example` to `config.json` and fill out the values:
 
 ## 🐳 Docker Configuration
 
-For those who would prefer to use our [Docker container](https://hub.docker.com/repository/docker/eritislami/evobot), you may provide values from `config.json` as environment variables.
+For those who would prefer to use our Docker container, you may provide values from `config.json` as environment variables.
 
 ```shell
-docker run -e TOKEN=your_discord_bot_token -e SPOTIFY_CLIENT_ID=your_spotify_client_id -e SPOTIFY_CLIENT_SECRET=your_spotify_client_secret bnfone/DiscordMusicBot-evobot -d
+docker run -e TOKEN=your_discord_bot_token -e SPOTIFY_CLIENT_ID=your_spotify_client_id -e SPOTIFY_CLIENT_SECRET=your_spotify_client_secret ghcr.io/bnfone/discord-bot-evomusic:latest -d
 ```
 
 **Docker Compose**
@@ -73,7 +70,7 @@ version: '3.8'
 
 services:
   discord_music_bot:
-    image: bnfone/DiscordMusicBot-evobot
+    image: ghcr.io/bnfone/discord-bot-evomusic:latest
     container_name: discord_music_bot
     environment:
       - TOKEN=your_discord_bot_token
@@ -105,7 +102,7 @@ This fork supports additional locales. For a complete list, please refer to the 
 
 ## 🤝 Contributing to This Fork
 
-1. Clone your fork: `git clone https://github.com/your-username/evobot.git`
+1. Clone your fork: `git clone https://github.com/bnfone/discord-bot-evomusic.git`
 2. Create your feature branch: `git checkout -b my-new-feature`
 3. Commit your changes: `cz` OR `npm run commit` (Avoid using `git commit` directly)
 4. Push to the branch: `git push origin my-new-feature`
