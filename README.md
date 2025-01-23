@@ -18,6 +18,17 @@ If you like this project, consider making a donation.
 
 You can still choose the amount you wish to donate; every contribution is welcome and appreciated. Thank you for your generosity!
 
+## ⚠️ Known Issues & Alternative Solution
+
+EvoMusic relies on several external dependencies to function correctly, and occasionally, these dependencies may cause issues that temporarily disrupt the bot's functionality. While we actively work to resolve these issues, we understand the inconvenience this may cause.
+
+#### 🛠️ Alternative Music Bot Solution
+
+As an alternative, we recommend trying our lightweight music bot, [Alastor](https://github.com/bnfone/discord-bot-alastor/pkgs/container/discord-bot-alastor). This bot streams music directly from public web-radio streams, ensuring reliable playback without the need for additional integrations.
+
+You can find more details and usage instructions here: [Alastor on GitHub](https://github.com/bnfone/discord-bot-alastor/pkgs/container/discord-bot-alastor).
+
+Feel free to switch between EvoMusic and Alastor depending on your needs!
 
 ## 📋 Requirements
 
