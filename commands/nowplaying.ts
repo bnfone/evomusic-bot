@@ -13,6 +13,10 @@ export default {
       return interaction.reply({ content: i18n.__("nowplaying.errorNotQueue"), ephemeral: true }).catch(console.error);
 
     const song = queue.songs[0];
+    if (!queue.resource) {
+      return interaction.reply("Momentan läuft kein Song, also keine Resource!");
+    }
+    
     const seek = queue.resource.playbackDuration / 1000;
     const left = song.duration - seek;
 

@@ -11,14 +11,22 @@ export class Playlist {
   public constructor(playlist: YoutubePlaylist) {
     this.data = playlist;
 
-    this.videos = this.data.videos
-      .filter((video) => video.title != "Private video" && video.title != "Deleted video")
+    // Zur Sicherheit: Prüfen, ob playlist.videos definiert ist
+    const rawVideos = this.data?.videos || [];
+
+    this.videos = rawVideos
+      .filter((video) => {
+        // Entferne private oder gelöschte Videos
+        if (!video.title) return false;
+        if (video.title === "Private video" || video.title === "Deleted video") return false;
+        return true;
+      })
       .slice(0, config.MAX_PLAYLIST_SIZE - 1)
       .map((video) => {
         return new Song({
           title: video.title!,
           url: `https://youtube.com/watch?v=${video.id}`,
-          duration: video.duration / 1000
+          duration: video.duration / 1000,
         });
       });
   }
@@ -27,16 +35,24 @@ export class Playlist {
     const urlValid = pattern.test(url);
     let playlist;
 
-    if (urlValid) {
-      playlist = await youtube.getPlaylist(url);
-    } else {
-      const result = await youtube.searchOne(search, "playlist");
-
-      if (!result || !result.url) {
-        throw new Error('Keine Playlist gefunden');
+    try {
+      if (urlValid) {
+        playlist = await youtube.getPlaylist(url);
+      } else {
+        const result = await youtube.searchOne(search, "playlist");
+        if (!result || !result.url) {
+          throw new Error("Keine Playlist gefunden");
+        }
+        playlist = await youtube.getPlaylist(result.url);
       }
 
-      playlist = await youtube.getPlaylist(result.url);
+      if (!playlist) {
+        // Falls getPlaylist zwar kein Error geworfen hat, aber kein Ergebnis zurückgab
+        throw new Error("Fehler: YouTube-Playlist konnte nicht geladen werden.");
+      }
+    } catch (error) {
+      console.error("Fehler beim Abrufen der YouTube-Playlist:", error);
+      throw new Error("Fehler beim Abrufen der YouTube-Playlist.");
     }
 
     return new this(playlist);

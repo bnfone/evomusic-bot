@@ -31,7 +31,7 @@ export default {
       return interaction.reply({ content: i18n.__("volume.errorNotValid"), ephemeral: true }).catch(console.error);
 
     queue.volume = volumeArg;
-    queue.resource.volume?.setVolumeLogarithmic(volumeArg / 100);
+    queue.resource?.volume?.setVolumeLogarithmic(volumeArg / 100);
 
     return interaction.reply({ content: i18n.__mf("volume.result", { arg: volumeArg }) }).catch(console.error);
   }

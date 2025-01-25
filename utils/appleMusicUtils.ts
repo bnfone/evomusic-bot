@@ -1,146 +1,208 @@
-import axios from 'axios';
-import cheerio from 'cheerio';
-import { Song } from "../structs/Song";
-import { ChatInputCommandInteraction, EmbedBuilder, TextChannel, GuildMember } from 'discord.js';
-import { Playlist } from "../structs/Playlist";
-import { bot } from "../index";
-import { i18n } from "../utils/i18n";
-import { MusicQueue } from "../structs/MusicQueue";
+/********************************************
+ * utils/appleMusicUtils.ts
+ ********************************************/
+import { load } from "cheerio";
+import axios from "axios";
+import { config } from "./config";
+import { getOdesliLink } from "./odesliUtils";
+import {
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  GuildMember,
+  VoiceChannel,
+  TextChannel
+} from "discord.js";
+
 import { joinVoiceChannel, DiscordGatewayAdapterCreator } from "@discordjs/voice";
+import { Song } from "../structs/Song";
+import { MusicQueue } from "../structs/MusicQueue";
+import { bot } from "../index";
+import { i18n } from "./i18n"; // Stelle sicher, dass i18n korrekt importiert ist
 
+/**
+ * Extrahiert alle Song-Links (Apple Music Song-URLs) aus dem HTML einer Playlist.
+ */
+export async function getAppleMusicLinks(playlistUrl: string): Promise<string[]> {
+  if (config.DEBUG) {
+    console.log(`[AppleMusic] Starte Parsing der Playlist: ${playlistUrl}`);
+  }
 
-// Funktion zum Extrahieren der Song-IDs aus den Apple Music Links
-function getSongId(appleMusicLink: string): string | null {
-    console.log(`Extrahiere Song ID aus dem Link: ${appleMusicLink}`);
-    const parsedUrl = new URL(appleMusicLink);
-    if (parsedUrl.pathname.includes('song')) {
-      const songId = parsedUrl.pathname.split('/').pop() || null;
-      console.log(`Extrahierte Song ID: ${songId}`);
-      return songId;
-    } else {
-      const songId = parsedUrl.searchParams.get('i');
-      console.log(`Extrahierte alternative Song ID: ${songId}`);
-      return songId;
-    }
-  }
-  
-  // Funktion zum Abrufen der Links aus der Playlist
-  async function getLinks(url: string): Promise<string[]> {
-    console.log(`Abrufen der Links aus der Playlist-URL: ${url}`);
-    const response = await axios.get(url);
-    const html = response.data;
-    const $ = cheerio.load(html);
-    const appleLinks = $('meta[property="music:song"]').toArray();
-    const links = appleLinks.map(element => $(element).attr('content') || '');
-    console.log(`Gefundene Links: ${links.join(', ')}`);
-    return links;
-  }
-  
-  // Funktion zum Abrufen von Songlinks von der Odesli API
-  async function getOdesliLink(songId: string): Promise<string | null> {
-    console.log(`Abrufen des YouTube-Links für Song ID: ${songId}`);
-    if (!songId) {
-      console.log("Song ID ist null, überspringe die Anfrage.");
-      return null;
-    }
-  
-    try {
-      const apiUrl = `https://api.song.link/v1-alpha.1/links?id=${songId}&platform=appleMusic&type=song`;
-      const response = await axios.get(apiUrl);
-      if (response.status === 200) {
-        const data = response.data;
-        const youtubeUrl = data.linksByPlatform.youtube?.url || null;
-        console.log(`Gefundener YouTube-Link: ${youtubeUrl}`);
-        return youtubeUrl;
-      } else {
-        console.error(`Fehler beim Abrufen der Daten für Song ID ${songId}: ${response.status} ${response.statusText}`, response.data);
-        return null;
-      }
-    } catch (error) {
-      console.error(`Fehler beim Abrufen des YouTube-Links für Apple Music Song ID ${songId}:`, error);
-      return null;
-    }
-  }
-  
-  async function processAppleMusicPlaylist(url: string, interaction: ChatInputCommandInteraction): Promise<void> {
-    const links = await getLinks(url);
-    if (links.length === 0) {
-      sendEmptyPlaylistMessage(interaction, url);
-      return;
-    }
-  
-    // Verarbeite die ersten beiden Songs und warte, bis beide abgeschlossen sind
-    const firstTwoSongs = links.slice(0, 2);
-    await Promise.all(firstTwoSongs.map((link, index) => processSong(link, index, interaction)));
-  
-    // Nachdem die ersten zwei Songs verarbeitet wurden, überprüfe die Warteschlange
-    const queue = bot.queues.get(interaction.guild!.id);
-    if (!queue || queue.songs.length === 0) {
-      sendEmptyPlaylistMessage(interaction, url);
-      return;
-    }
-  
-    // Verarbeite den Rest der Songs im Hintergrund
-    const remainingSongs = links.slice(2);
-    remainingSongs.forEach((link, index) => processSong(link, index + 2, interaction));
-  }
-  
-  async function sendEmptyPlaylistMessage(interaction: ChatInputCommandInteraction, url: string) {
-    let playlistEmbed = new EmbedBuilder()
-      .setTitle(url)
-      .setDescription("Keine Lieder in der Playlist gefunden.")
-      .setColor("#F8AA2A")
-      .setTimestamp();
-  
-    await interaction.editReply({
-      content: "Die Playlist wurde verarbeitet, aber es wurden keine Songs gefunden.",
-      embeds: [playlistEmbed]
+  try {
+    const { data: html } = await axios.get<string>(playlistUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      },
     });
-  }
-  
-  async function processSong(link: string, index: number, interaction: ChatInputCommandInteraction): Promise<void> {
-    const songId = getSongId(link);
-    if (!songId) return;
 
-    const youtubeUrl = await getOdesliLink(songId);
-    if (!youtubeUrl) return;
+    const $ = load(html);
+    const metaTags = $('meta[property="music:song"]').toArray();
+    const links = metaTags.map((el) => $(el).attr("content") || "").filter(Boolean);
 
-    try {
-        const song = await Song.from(youtubeUrl, youtubeUrl);
-
-        if (!interaction.guild) return;
-        let queue = bot.queues.get(interaction.guild.id);
-
-        // Sicherstellen, dass interaction.member ein GuildMember ist
-        if (!(interaction.member instanceof GuildMember) || !interaction.member.voice.channel) return;
-
-        if (!queue) {
-            const channel = interaction.member.voice.channel;
-            queue = new MusicQueue({
-                interaction,
-                textChannel: interaction.channel as TextChannel,
-                connection: joinVoiceChannel({
-                    channelId: channel.id,
-                    guildId: interaction.guild.id,
-                    adapterCreator: interaction.guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
-                }),
-            });
-
-            bot.queues.set(interaction.guild.id, queue);
-        }
-
-        queue.enqueue(song);
-
-        // Stellen Sie sicher, dass queue eine play-Methode hat
-        if ('play' in queue) {
-            if (index < 2 || !queue.isPlaying) {
-                queue.play();
-            }
-        }
-    } catch (error) {
-        console.error(`Fehler beim Verarbeiten des Songs ${link}: ${error}`);
+    if (config.DEBUG) {
+      console.log(`[AppleMusic] Gefundene Links: ${JSON.stringify(links, null, 2)}`);
     }
+
+    return links;
+  } catch (error) {
+    console.error("[AppleMusic] Fehler beim Abrufen der Playlist-URL:", error);
+    return [];
+  }
 }
 
-  
-  export { processAppleMusicPlaylist };
+/**
+ * Konvertiert eine Apple-Music-Song-URL direkt in eine YouTube-URL via Odesli.
+ */
+export async function appleMusicSongToYoutube(appleMusicLink: string): Promise<string | null> {
+  // Übergebe den vollständigen Link an Odesli
+  const odesliUrl = await getOdesliLink(appleMusicLink);
+  return odesliUrl; // Kann direkt die YouTube-URL sein
+}
+
+/**
+ * Verarbeitet eine komplette Apple Music Playlist.
+ */
+export async function processAppleMusicPlaylist(
+  url: string,
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  const links = await getAppleMusicLinks(url).catch((error) => {
+    console.error(`Fehler beim Abrufen der Links für ${url}:`, error);
+    return [];
+  });
+
+  if (!links || links.length === 0) {
+    await sendEmptyPlaylistMessage(interaction, url);
+    return;
+  }
+
+  // Nachricht an den Benutzer senden, dass die Playlist erkannt wurde
+  await interaction.editReply({
+    content: i18n.__mf("appleMusicUtils.playlistDetected", { count: links.length }),
+  }).catch(console.error);
+
+  try {
+    // Ersten Song synchron
+    const firstSongLink = links[0];
+    await processSong(firstSongLink, 0, interaction);
+
+    // Nachricht senden, dass die Wiedergabe gestartet wurde
+    await interaction.followUp({
+      content: i18n.__("appleMusicUtils.playbackStarted"),
+    }).catch(console.error);
+
+    // Restliche Songs asynchron verarbeiten
+    const remainingSongs = links.slice(1);
+    remainingSongs.forEach(async (link, index) => {
+      try {
+        await processSong(link, index + 1, interaction);
+      } catch (err) {
+        console.error(`Fehler beim Verarbeiten des Songs an Position ${index + 1}:`, err);
+      }
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Fehler beim Verarbeiten der Playlist: ${error.message}`);
+    } else {
+      console.error(`Unbekannter Fehler beim Verarbeiten der Playlist:`, error);
+    }
+  }
+}
+
+/**
+ * Sendet eine Nachricht, wenn keine Songs gefunden wurden.
+ */
+async function sendEmptyPlaylistMessage(
+  interaction: ChatInputCommandInteraction,
+  url: string
+) {
+  const playlistEmbed = new EmbedBuilder()
+    .setTitle(url)
+    .setDescription(i18n.__("appleMusicUtils.noSongsFound"))
+    .setColor("#F8AA2A")
+    .setTimestamp();
+
+  await interaction.editReply({
+    content: i18n.__("appleMusicUtils.playlistProcessedNoSongs"),
+    embeds: [playlistEmbed],
+  }).catch(console.error);
+}
+
+/**
+ * Verarbeitet einen einzelnen Apple-Music-Song-Link (ganze URL).
+ * Holt den entsprechenden YouTube-Link via Odesli.
+ */
+async function processSong(
+  appleMusicLink: string,
+  index: number,
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  // 1) Vollständigen Apple-Music-Link an Odesli geben
+  const youtubeUrl = await getOdesliLink(appleMusicLink);
+
+  if (!youtubeUrl) {
+    console.warn(`Kein YouTube-Link für AppleMusic-Link: ${appleMusicLink}. Überspringe...`);
+    await interaction.followUp({
+      content: i18n.__mf("appleMusicUtils.youtubeLinkNotConverted", { link: appleMusicLink }),
+    }).catch(console.error);
+    return;
+  }
+
+  try {
+    // 2) Song-Objekt erstellen
+    const song = await Song.from(youtubeUrl, youtubeUrl);
+    if (!interaction.guild) return;
+
+    let queue = bot.queues.get(interaction.guild.id);
+    const member = interaction.member as GuildMember;
+
+    // 3) Member-Check
+    if (!member.voice.channel) {
+      console.warn("Nutzer ist nicht in einem Voice-Channel. Breche ab.");
+      return;
+    }
+
+    // 4) Falls keine Queue existiert => Neue erstellen
+    if (!queue) {
+      const channel = member.voice.channel as VoiceChannel;
+      queue = new MusicQueue({
+        interaction,
+        textChannel: interaction.channel as TextChannel,
+        connection: joinVoiceChannel({
+          channelId: channel.id,
+          guildId: interaction.guild.id,
+          adapterCreator: channel.guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
+        }),
+      });
+      bot.queues.set(interaction.guild.id, queue);
+    }
+
+    // 5) Song in die Queue stecken
+    queue.enqueue(song);
+
+    // 6) Falls Queue noch nicht spielt oder wir am Anfang sind: play()
+    if ("play" in queue) {
+      if (index < 2 || !queue.isPlaying) {
+        queue.play();
+      }
+    }
+  } catch (error: any) {
+    if (error instanceof Error) {
+      if (error.message.includes("Video unavailable")) {
+        console.error(`Video nicht verfügbar für Song: ${appleMusicLink}. Überspringe...`);
+        await interaction.followUp({
+          content: i18n.__mf("appleMusicUtils.videoUnavailable", { link: appleMusicLink }),
+        }).catch(console.error);
+      } else {
+        console.error(`Fehler beim Verarbeiten des Songs ${appleMusicLink}: ${error.message}`);
+        await interaction.followUp({
+          content: i18n.__mf("common.errorCommandWithDetails", { error: error.message }),
+        }).catch(console.error);
+      }
+    } else {
+      console.error(`Unbekannter Fehler beim Verarbeiten des Songs: ${appleMusicLink}`, error);
+      await interaction.followUp({
+        content: i18n.__("common.errorCommand"),
+      }).catch(console.error);
+    }
+  }
+}

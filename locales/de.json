@@ -1,167 +1,205 @@
 {
   "clip": {
-    "description": "Spielt eine Kurz-Schnitt Audio Datei ab",
-    "usagesReply": "Nutzung: {prefix}clip <name>",
-    "errorQueue": "Ich kann den Kurz-Schnitt nicht abspielen, da die derzeitige Queue inaktiv ist.",
-    "errorNotChannel": "Betrete zuerst einen Voice-Channel!"
+    "description": "Spielt einen Clip-Sound ab",
+    "usagesReply": "Verwendung: {prefix}clip <Name>",
+    "errorQueue": "Kann den Clip nicht abspielen, da eine aktive Warteschlange vorhanden ist.",
+    "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!"
   },
   "clips": {
-    "description": "Zeigt alle Kurz-Schnitt Audios an"
+    "description": "Liste aller Clips"
   },
   "help": {
-    "description": "Zeigt alle Commands und deren Beschreibungen an",
-    "embedTitle": "{botname} Help",
-    "embedDescription": "Zeigt alle Commands an"
+    "description": "Zeigt alle Befehle und Beschreibungen an",
+    "embedTitle": "{botname} Hilfe",
+    "embedDescription": "Liste aller Befehle"
   },
   "invite": {
-    "description": "Schickt einen Boteinladungslink"
+    "description": "Sende den Einladungslink des Bots"
   },
   "loop": {
-    "description": "Musikschleife umschalten",
-    "errorNotQueue": "Es wird gerade nichts gespielt.",
-    "result": "Musikschleife ist nun auf {loop}"
+    "description": "Musik-Wiederholung umschalten",
+    "errorNotQueue": "Es wird nichts abgespielt.",
+    "result": "Wiederholung ist jetzt {loop}"
   },
   "lyrics": {
-    "description": "Bekomme den Songtext(lyrics) vom jetzigem Song",
-    "errorNotQueue": "Es wird gerade nichts gespielt.",
-    "lyricsNotFound": "Keine Lyrics für {title} gefunden.",
-    "embedTitle": "{title} - Lyrics"
+    "description": "Liedtexte für das aktuell gespielte Lied abrufen",
+    "errorNotQueue": "Es wird nichts abgespielt.",
+    "lyricsNotFound": "Keine Liedtexte für {title} gefunden.",
+    "embedTitle": "{title} - Liedtexte"
   },
   "move": {
-    "description": "Verschiebe Songs in der Queue",
-    "errorNotQueue": "Es gibt keine Queue.",
-    "usagesReply": "Nutzung: {prefix}move <Queue Number>",
-    "result": "<@{author}> 🚚 verschiebte **{title}** zu {index} in der Queue."
+    "description": "Lieder in der Warteschlange verschieben",
+    "errorNotQueue": "Es gibt keine Warteschlange.",
+    "usagesReply": "Verwendung: {prefix}move <Warteschlangen-Nummer>",
+    "result": "<@{author}> 🚚 hat **{title}** an Position {index} in der Warteschlange verschoben.",
+    "args": {
+      "movefrom": "Slot, von dem verschoben wird",
+      "moveto": "Slot, wohin verschoben wird"
+    }
   },
   "nowplaying": {
-    "description": "Zeigt den jetzigen Song an",
-    "errorNotQueue": "Es wird gerade nichts gespielt.",
-    "embedTitle": "Spiele gerade",
+    "description": "Zeigt das aktuell gespielte Lied an",
+    "errorNotQueue": "Es wird nichts abgespielt.",
+    "embedTitle": "Aktuell gespielt",
     "live": " ◉ LIVE",
-    "timeRemaining": "Übrige Zeit: {time}"
+    "timeRemaining": "Verbleibende Zeit: {time}"
   },
   "pause": {
-    "description": "Pausiere den jetzigen Song",
-    "errorNotQueue": "Es wird gerade nichts gespielt.",
-    "result": "<@{author}> ⏸ pausierte den Song."
+    "description": "Die aktuell gespielte Musik pausieren",
+    "errorNotQueue": "Es wird nichts abgespielt.",
+    "result": "<@{author}> ⏸ hat die Musik pausiert.",
+    "paused": "<@{author}> ⏸ Die Musik wurde pausiert.",
+    "unpaused": "<@{author}> ▶ Die Musik wurde fortgesetzt."
   },
   "ping": {
-    "description": "Zeigt den durchschnittlichen Ping vom Bot an",
-    "result": "📈 Durchschnittlicher Ping zur API ist: {ping} ms"
+    "description": "Zeigt die durchschnittliche Ping-Zeit des Bots",
+    "result": "📈 Durchschnittliche Ping-Zeit zur API: {ping} ms"
   },
   "play": {
-    "description": "Spielt Audio von Youtube oder Soundcloud ab",
-    "errorNotChannel": "Betrete zuerst einen Voice-Channel!",
-    "errorNotInSameChannel": "Du musst im selben Voice-Channel wie {user} sein",
-    "usageReply": "Nutzung: {prefix}play <YouTube URL | Video Name | Soundcloud URL>",
-    "missingPermissionConnect": "Ich kann deinem Voice-Channel nicht joinen, stelle sicher, dass ich die Berechtigung dazu habe!",
-    "missingPermissionSpeak": "Ich kann deinem Voice-Channel nicht sprechen, stelle sicher, dass ich die Berechtigung dazu habe!",
-    "queueAdded": "✅ **{title}** wurde von <@{author}> der Queue hinzugefügt",
-    "cantJoinChannel": "Konnte dem Channel nicht joinen, Fehlercode: {error}",
-    "queueEnded": "❌ Music-Queue beended.",
-    "queueError": "Error: {error}",
-    "startedPlaying": "🎶 Spiele jetzt: **{title}** {url}",
-    "skipSong": "<@{author}> ⏩ hat den Song übersprungen.",
+    "description": "Spielt Audio von Spotify, Apple Music oder YouTube ab",
+    "optionSong": "Der Song, den du abspielen möchtest",
+    "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!",
+    "errorNotInSameChannel": "Du musst im selben Kanal wie {user} sein.",
+    "usageReply": "Verwendung: {prefix}play <YouTube URL | Videoname>",
+    "missingPermissionConnect": "Kann nicht mit dem Sprachkanal verbinden, Berechtigungen fehlen.",
+    "missingPermissionSpeak": "Ich kann in diesem Sprachkanal nicht sprechen. Stelle sicher, dass ich die richtigen Berechtigungen habe!",
+    "queueAdded": "✅ **{title}** wurde von <@{author}> zur Warteschlange hinzugefügt.",
+    "cantJoinChannel": "Konnte dem Kanal nicht beitreten: {error}",
+    "queueEnded": "❌ Die Musik-Warteschlange ist beendet.",
+    "queueError": "Fehler: {error}",
+    "startedPlaying": "🎶 Starte das Abspielen: **{title}** {url}",
+    "skipSong": "<@{author}> ⏩ hat das Lied übersprungen.",
     "pauseSong": "<@{author}> ⏸ hat die Musik pausiert.",
     "resumeSong": "<@{author}> ▶ hat die Musik fortgesetzt!",
-    "unmutedSong": "<@{author}> 🔊 hat die Musik unmuted!",
-    "mutedSong": "<@{author}> 🔇 hat die Musik gemuted!",
-    "decreasedVolume": "<@{author}> 🔉 hat die Lautstärke reduziert, sie ist jetzt auf {volume}%",
-    "increasedVolume": "<@{author}> 🔊 hat die Lautstärke erhöht, sie ist jetzt auf {volume}%",
-    "loopSong": "<@{author}> Musikschleife ist nun auf {loop}",
+    "unmutedSong": "<@{author}> 🔊 hat die Musik entstummt!",
+    "mutedSong": "<@{author}> 🔇 hat die Musik stummgeschaltet!",
+    "decreasedVolume": "<@{author}> 🔉 hat die Lautstärke verringert. Die Lautstärke ist jetzt {volume}%",
+    "increasedVolume": "<@{author}> 🔊 hat die Lautstärke erhöht. Die Lautstärke ist jetzt {volume}%",
+    "loopSong": "<@{author}> Wiederholung ist jetzt {loop}",
     "stopSong": "<@{author}> ⏹ hat die Musik gestoppt!",
-    "leaveChannel": "Verlasse den Voice-Channel...",
+    "leaveChannel": "Verlasse den Sprachkanal...",
     "songNotFound": "Audio nicht gefunden",
-    "songAccessErr": "Das Video ist altersbeschränkt, privat oder nicht verfügbar"
+    "songAccessErr": "Video ist altersbeschränkt, privat oder nicht verfügbar",
+    "errorNoResults": "Keine Ergebnisse für {url} gefunden",
+    "errorInvalidURL": "Ungültige URL, bitte versuche eine Suche oder eine YouTube-URL",
+    "startedPlayingRadio": "🎧 Starte das Radio."
   },
   "playlist": {
-    "description": "Spielt eine Playlist von Youtube ab",
-    "usagesReply": "Nutzung: {prefix}playlist <YouTube Playlist URL | Playlist Name>",
-    "errorNotChannel": "Betrete zuerst einen Voice-Channel!",
-    "errorNotInSameChannel": "Du musst im selben Voice-Channel wie {user} sein",
-    "missingPermissionConnect": "Ich kann deinem Voice-Channel nicht joinen, stelle sicher, dass ich die Berechtigung dazu habe!",
-    "missingPermissionSpeak": "Ich kann deinem Voice-Channel nicht sprechen, stelle sicher, dass ich die Berechtigung dazu habe!",
+    "description": "Spielt eine Playlist von Spotify oder Apple Music ab",
+    "usagesReply": "Verwendung: {prefix}playlist <YouTube Playlist URL | Playlist Name>",
+    "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!",
+    "errorNotInSameChannel": "Du musst im selben Kanal wie {user} sein.",
+    "missingPermissionConnect": "Kann nicht mit dem Sprachkanal verbinden, Berechtigungen fehlen.",
+    "missingPermissionSpeak": "Ich kann in diesem Sprachkanal nicht sprechen. Stelle sicher, dass ich die richtigen Berechtigungen habe!",
     "errorNotFoundPlaylist": "Playlist nicht gefunden :(",
-    "fetchingPlaylist": "⌛ Abrufen der Playlist...",
-    "playlistCharLimit": "\nPlaylist ist größer als das Limit...",
-    "startedPlaylist": "<@{author}> hat eine Playlist gestartet",
-    "cantJoinChannel": "Konnte den Voice-Channel nicht joinen, Fehler: {error}"
+    "fetchingPlaylist": "⌛ Lade die Playlist...",
+    "playlistCharLimit": "\nDie Playlist überschreitet das Zeichenlimit und kann nicht vollständig verarbeitet werden.",
+    "startedPlaylist": "<@{author}> hat eine Playlist gestartet.",
+    "cantJoinChannel": "Konnte dem Kanal nicht beitreten: {error}",
+    "errorNotSupported": "Dieses Playlist-Format wird nicht unterstützt.",
+    "errorNoYoutubeLink": "Keine YouTube-Verknüpfung in der Playlist gefunden.",
+    "optionPlaylist": "YouTube Playlist URL oder Name",
+    "optionShuffle": "Shuffle die Playlist",
+    "errorYoutubeGeneric": "Beim Abrufen der YouTube-Playlist ist ein Fehler aufgetreten.",
+    "addedSpotifySongs": "{count} Spotify-Songs wurden zur Warteschlange hinzugefügt.",
+    "shuffleEnabled": "Die Warteschlange wurde gemischt."
   },
   "pruning": {
-    "description": "Schalten Sie das Bereinigen von Bot-Nachrichten um",
+    "description": "Pruning der Bot-Nachrichten umschalten",
     "errorWritingFile": "Beim Schreiben in die Datei ist ein Fehler aufgetreten.",
-    "result": "Nachrichtenbereinigung ist {result}"
+    "result": "Pruning der Nachrichten ist {result}"
   },
   "queue": {
-    "description": "Zeige die Musikqueue und spiele jetzt.",
-    "missingPermissionMessage": "Fehlende Berechtigung zum Verwalten von Nachrichten oder Hinzufügen von Reaktionen",
-    "errorNotQueue": "❌ **Auf diesem Server wird nichts gespielt**",
+    "description": "Zeige die Musik-Warteschlange und das aktuell gespielte Lied.",
+    "missingPermissionMessage": "Berechtigung zum Verwalten von Nachrichten oder Hinzufügen von Reaktionen fehlt",
+    "errorNotQueue": "❌ **Es wird nichts in diesem Server abgespielt**",
     "currentPage": "Aktuelle Seite - ",
-    "embedTitle": "Song Queue\n",
-    "embedCurrentSong": "**Jetziges Lied - [{title}]({url})**\n\n{info}"
+    "embedTitle": "Song-Warteschlange\n",
+    "embedCurrentSong": "**Aktuelles Lied - [{title}]({url})**\n\n{info}"
   },
   "remove": {
-    "description": "Entfernen Sie das Lied aus der Queue",
-    "errorNotQueue": "Es gibt keine Queue.",
-    "usageReply": "Nutzung: {prefix}remove <Queue Number>",
-    "result": "<@{author}> ❌ hat **{title}** aus der Queue entfernt."
+    "description": "Entferne ein Lied aus der Warteschlange",
+    "errorNotQueue": "Es gibt keine Warteschlange.",
+    "usageReply": "Verwendung: {prefix}remove <Warteschlangen-Nummer>",
+    "result": "<@{author}> ❌ hat **{title}** aus der Warteschlange entfernt."
   },
   "resume": {
-    "description": "Setzte die Musik fort",
-    "errorNotQueue": "Es wird gerade nichts gespielt.",
+    "description": "Setzt die aktuell gespielte Musik fort",
+    "errorNotQueue": "Es wird nichts abgespielt.",
     "resultNotPlaying": "<@{author}> ▶ hat die Musik fortgesetzt!",
-    "errorPlaying": "Die Queue ist nicht pausiert."
+    "errorPlaying": "Die Warteschlange ist nicht pausiert."
   },
   "search": {
     "description": "Suche und wähle Videos zum Abspielen aus",
-    "usageReply": "Nutzung: {prefix}{name} <Video Name>",
-    "errorAlreadyCollector": "In diesem Kanal ist bereits ein Nachrichtensammler aktiv.",
-    "errorNotChannel": "Betrete zuerst einen Voice-Channel!",
-    "resultEmbedTitle": "**Antworte mit der Songnummer, die du spielen möchten**",
-    "resultEmbedDesc": "Ergebnisse für: {search}"
+    "usageReply": "Verwendung: {prefix}{name} <Videoname>",
+    "errorAlreadyCollector": "Ein Nachrichten-Sammler ist bereits in diesem Kanal aktiv.",
+    "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!",
+    "resultEmbedTitle": "**Antwort mit der Nummer des Liedes, das du abspielen möchtest**",
+    "resultEmbedDesc": "Ergebnisse für: {search}",
+    "optionQuery": "Suchanfrage",
+    "noResults": "Keine Ergebnisse für die Anfrage, bitte versuche etwas anderes"
   },
   "shuffle": {
-    "description": "Mischte die Queue",
-    "errorNotQueue": "Es gibt keine Queue.",
-    "result": "<@{author}> 🔀 hat die Queue gemischt"
+    "description": "Warteschlange mischen",
+    "errorNotQueue": "Es gibt keine Warteschlange.",
+    "result": "<@{author}> 🔀 hat die Warteschlange gemischt."
   },
   "skip": {
-    "description": "Überspringe den jetzigen Song",
-    "errorNotQueue": "Es wird gerade nichts gespielt that I could skip for you.",
-    "result": "<@{author}> ⏭ hat den Song übersprungen"
+    "description": "Überspringe das aktuell gespielte Lied",
+    "errorNotQueue": "Es wird nichts abgespielt, das ich für dich überspringen könnte.",
+    "result": "<@{author}> ⏭ hat das Lied übersprungen."
   },
   "skipto": {
-    "description": "Überspringe eine ausgewählte Menge von Songs",
-    "usageReply": "Nutzung: {prefix}{name} <Queue Number>",
-    "errorNotQueue": "Es gibt keine Queue.",
-    "errorNotValid": "Die Queue ist nur {length} Songs lang!",
-    "result": "<@{author}> ⏭ hat {arg} Songs übersprungen"
+    "description": "Springe zur ausgewählten Warteschlangen-Nummer",
+    "usageReply": "Verwendung: {prefix}{name} <Warteschlangen-Nummer>",
+    "errorNotQueue": "Es gibt keine Warteschlange.",
+    "errorNotValid": "Die Warteschlange ist nur {length} Lieder lang!",
+    "result": "<@{author}> ⏭ hat {arg} Lieder übersprungen.",
+    "args": {
+      "number": "Die Warteschlangen-Nummer, zu der gesprungen werden soll"
+    }
   },
   "stop": {
-    "description": "Stoppe die Musik",
-    "errorNotQueue": "Es wird gerade nichts gespielt.",
+    "description": "Stoppt die Musik",
+    "errorNotQueue": "Es wird nichts abgespielt.",
     "result": "<@{author}> ⏹ hat die Musik gestoppt!"
   },
   "uptime": {
-    "description": "Checke die Uptime vom Bot",
-    "result": "Uptime: `{days} day(s),{hours} hours, {minutes} minutes, {seconds} seconds`"
+    "description": "Überprüfe die Betriebszeit",
+    "result": "Betriebszeit: `{days} Tag(e), {hours} Stunde(n), {minutes} Minute(n), {seconds} Sekunde(n)`"
   },
   "volume": {
-    "description": "Ändere die Lautstärke vom jetzigem Song",
-    "errorNotQueue": "Es wird gerade nichts gespielt.",
-    "errorNotChannel": "Betrete zuerst einen Voice-Channel!",
-    "currentVolume": "🔊 Die Lautstärke ist: **{volume}%**",
-    "errorNotNumber": "Bitte nutze eine Number um die Lautstärke zu ändern.",
-    "errorNotValid": "Bitte nutze eine Number zwischen 0 - 100.",
-    "result": "Lautstärke wurde auf **{arg}%** gesetzt."
+    "description": "Ändere die Lautstärke der aktuell gespielten Musik",
+    "errorNotQueue": "Es wird nichts abgespielt.",
+    "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!",
+    "currentVolume": "🔊 Die aktuelle Lautstärke ist: **{volume}%**",
+    "errorNotNumber": "Bitte verwende eine Zahl, um die Lautstärke einzustellen.",
+    "errorNotValid": "Bitte verwende eine Zahl zwischen 0 - 100.",
+    "result": "Lautstärke auf: **{arg}%** eingestellt."
   },
   "common": {
     "on": "**an**",
     "off": "**aus**",
     "enabled": "**aktiviert**",
     "disabled": "**deaktiviert**",
-    "errorNotChannel": "Betrete zuerst einen Voice-Channel!",
-    "cooldownMessage": "Bitte warte noch {time} Sekunde(n) bevor du wieder den Command `{name}` nuzten kannst.",
-    "errorCommand": "Da war ein Fehler beim ausführen des Commands."
+    "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!",
+    "cooldownMessage": "Bitte warte noch {time} Sekunde(n), bevor du den Befehl `{name}` erneut verwendest.",
+    "errorCommand": "Beim Ausführen des Befehls ist ein Fehler aufgetreten.",
+    "loading": "⏳ Lade...",
+    "errorCommandWithDetails": "⚠️ Ein Fehler ist beim Ausführen des Befehls aufgetreten: {error}."
+  },
+  "Invite me to your server!": "Lade mich auf deinen Server ein!",
+  "Invite": "Einladen",
+  "playnext": {
+    "description": "Spielt ein Lied nach dem aktuellen Lied :)"
+  },
+  "appleMusicUtils": {
+    "playlistDetected": "🎵 Playlist erkannt! Verarbeite **{count} Songs**...",
+    "playbackStarted": "✅ Die Wiedergabe wurde gestartet! Die restlichen Songs werden verarbeitet.",
+    "youtubeLinkNotConverted": "⚠️ **{link}** konnte nicht in einen YouTube-Link umgewandelt werden. Überspringe...",
+    "videoUnavailable": "❌ Das YouTube-Video für den Song **{link}** ist nicht verfügbar. Überspringe...",
+    "noSongsFound": "Keine Lieder in der Playlist gefunden.",
+    "playlistProcessedNoSongs": "Die Playlist wurde verarbeitet, aber es wurden keine Songs gefunden.",
+    "fetchingPlaylist": "⌛ Lade die Playlist..."
   }
 }
