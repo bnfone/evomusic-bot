@@ -1,165 +1,60 @@
 /********************************************
  * utils/appleMusicUtils.ts
  ********************************************/
-import axios from "axios";
 import { load } from "cheerio";
+import axios from "axios";
+import { config } from "./config";
+import { getOdesliLink } from "./odesliUtils";
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
-  TextChannel,
   GuildMember,
   VoiceChannel,
+  TextChannel
 } from "discord.js";
-import { bot } from "../index";
-import { MusicQueue } from "../structs/MusicQueue";
-import { Song } from "../structs/Song";
+
 import { joinVoiceChannel, DiscordGatewayAdapterCreator } from "@discordjs/voice";
-import fs from "fs";
-import path from "path";
+import { Song } from "../structs/Song";
+import { MusicQueue } from "../structs/MusicQueue";
+import { bot } from "../index";
 
 /**
- * Pfad zum Cache-File
+ * Extrahiert alle Song-Links (Apple Music Song-URLs) aus dem HTML einer Playlist.
  */
-const CACHE_FILE_PATH = path.resolve(__dirname, "../cache.json");
-
-/**
- * Lädt den Cache aus der Datei.
- */
-function loadCache(): any {
-  if (!fs.existsSync(CACHE_FILE_PATH)) {
-    fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify({}));
+export async function getAppleMusicLinks(playlistUrl: string): Promise<string[]> {
+  if (config.DEBUG) {
+    console.log(`[AppleMusic] Starte Parsing der Playlist: ${playlistUrl}`);
   }
-  const rawData = fs.readFileSync(CACHE_FILE_PATH, "utf-8");
-  return JSON.parse(rawData);
-}
 
-/**
- * Speichert den Cache in die Datei.
- */
-function saveCache(cache: any): void {
-  fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(cache, null, 2), "utf-8");
-}
-
-/**
- * Extrahiert die Song-ID aus einem Apple Music Link.
- */
-function getSongId(appleMusicLink: string): string | null {
-  //console.log(`Extrahiere Song ID aus dem Link: ${appleMusicLink}`);
   try {
-    const parsedUrl = new URL(appleMusicLink);
-
-    // Prüfen, ob die URL den Pfad "/song/" enthält
-    if (parsedUrl.pathname.includes("song")) {
-      const songId = parsedUrl.pathname.split("/").pop() || null;
-      //console.log(`Extrahierte Song ID: ${songId}`);
-      return songId;
-    } else {
-      // Fallback: ID aus Query-Parameter "i"
-      const songId = parsedUrl.searchParams.get("i");
-      //console.log(`Extrahierte alternative Song ID: ${songId}`);
-      return songId;
-    }
-  } catch (error) {
-    console.error(`Fehler beim Parsen der Apple-Music-URL: ${error}`);
-    return null;
-  }
-}
-
-/**
- * Ruft alle Apple-Music-Song-Links aus dem HTML einer Playlist ab.
- */
-async function getLinks(url: string): Promise<string[]> {
-  //console.log(`Abrufen der Links aus der Playlist-URL: ${url}`);
-  try {
-    const response = await axios.get(url, {
+    const { data: html } = await axios.get<string>(playlistUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
       },
     });
 
-    if (response.status !== 200) {
-      console.error(
-        `Unerwarteter Statuscode für ${url}: ${response.status} ${response.statusText}`
-      );
-      return [];
-    }
-
-    const html = response.data;
-    if (typeof html !== "string") {
-      console.error("Erhaltene Daten sind kein HTML-String:", typeof html);
-      return [];
-    }
-
     const $ = load(html);
+    const metaTags = $('meta[property="music:song"]').toArray();
+    const links = metaTags.map((el) => $(el).attr("content") || "").filter(Boolean);
 
-    // Nach Meta-Tags mit property="music:song" suchen
-    const appleLinks = $('meta[property="music:song"]').toArray();
-    if (appleLinks.length === 0) {
-      console.warn(
-        "Keine <meta property='music:song'>-Tags gefunden. Struktur hat sich evtl. geändert."
-      );
-      return [];
+    if (config.DEBUG) {
+      console.log(`[AppleMusic] Gefundene Links: ${JSON.stringify(links, null, 2)}`);
     }
 
-    const links = appleLinks.map((element) => $(element).attr("content") || "");
-    console.log(`Gefundene Apple-Music-Links: ${links.join(", ")}`);
     return links;
   } catch (error) {
-    console.error(`Fehler beim Anfordern der URL ${url}:`, error);
+    console.error("[AppleMusic] Fehler beim Abrufen der Playlist-URL:", error);
     return [];
   }
 }
 
 /**
- * Ruft die Odesli-API auf, um für eine Apple-Music-Song-ID alle relevanten Links (inkl. YouTube) zu erhalten.
+ * Konvertiert eine Apple-Music-Song-URL direkt in eine YouTube-URL via Odesli.
  */
-async function getOdesliLink(songId: string): Promise<string | null> {
-  //console.log(`Abrufen des YouTube-Links für Apple-Song-ID: ${songId}`);
-  const cache = loadCache();
-
-  // Überprüfe, ob die Daten bereits im Cache vorhanden sind
-  if (cache[songId] && cache[songId].youtubeUrl) {
-    console.log(`YouTube-Link aus dem Cache: ${cache[songId].youtubeUrl}`);
-    return cache[songId].youtubeUrl;
-  }
-
-  try {
-    // Konstruiere die korrekte Anfrage an die Odesli-API
-    const apiUrl = "https://api.song.link/v1-alpha.1/links";
-    const params = {
-      id: songId,
-      platform: "appleMusic",
-      type: "song",
-    };
-
-    const response = await axios.get(apiUrl, { params });
-
-    // Überprüfe, ob die API gültige Daten liefert
-    if (response.status === 200 && response.data?.linksByPlatform?.youtube) {
-      const youtubeUrl = response.data.linksByPlatform.youtube.url;
-      //console.log(`Gefundener YouTube-Link: ${youtubeUrl}`);
-
-      // Aktualisiere den Cache
-      cache[songId] = cache[songId] || {};
-      cache[songId].youtubeUrl = youtubeUrl;
-      saveCache(cache);
-
-      return youtubeUrl;
-    }
-
-    console.warn(`Kein YouTube-Link gefunden für Song-ID ${songId}.`);
-    return null;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error(
-        `Fehler beim Abrufen des Odesli-Links für Song-ID ${songId}:`,
-        error.response?.data || error.message
-      );
-    } else {
-      console.error(`Unbekannter Fehler beim Abrufen des Odesli-Links:`, error);
-    }
-    return null;
-  }
+export async function appleMusicSongToYoutube(appleMusicLink: string): Promise<string | null> {
+  // Übergebe den vollständigen Link an Odesli
+  const odesliUrl = await getOdesliLink(appleMusicLink);
+  return odesliUrl; // Kann direkt die YouTube-URL sein
 }
 
 /**
@@ -169,8 +64,7 @@ export async function processAppleMusicPlaylist(
   url: string,
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
-  // Schritt 1: Playlist abrufen
-  const links = await getLinks(url).catch((error) => {
+  const links = await getAppleMusicLinks(url).catch((error) => {
     console.error(`Fehler beim Abrufen der Links für ${url}:`, error);
     return [];
   });
@@ -180,13 +74,13 @@ export async function processAppleMusicPlaylist(
     return;
   }
 
-  // Schritt 2: Nachricht an den Benutzer senden, dass die Playlist verarbeitet wird
+  // Nachricht an den Benutzer senden, dass die Playlist erkannt wurde
   await interaction.editReply({
     content: `🎵 Playlist erkannt! Verarbeite **${links.length} Songs**...`,
   });
 
-  // Schritt 3: Starte die Wiedergabe mit dem ersten Song sofort
   try {
+    // Ersten Song synchron
     const firstSongLink = links[0];
     await processSong(firstSongLink, 0, interaction);
 
@@ -195,16 +89,13 @@ export async function processAppleMusicPlaylist(
       content: `✅ Die Wiedergabe wurde gestartet! Die restlichen Songs werden verarbeitet.`,
     });
 
-    // Restliche Songs parallel verarbeiten
+    // Restliche Songs asynchron verarbeiten
     const remainingSongs = links.slice(1);
     remainingSongs.forEach(async (link, index) => {
       try {
         await processSong(link, index + 1, interaction);
       } catch (err) {
-        console.error(
-          `Fehler beim Verarbeiten des Songs an Position ${index + 1}:`,
-          err
-        );
+        console.error(`Fehler beim Verarbeiten des Songs an Position ${index + 1}:`, err);
       }
     });
   } catch (error) {
@@ -236,59 +127,58 @@ async function sendEmptyPlaylistMessage(
 }
 
 /**
- * Verarbeitet einen einzelnen Song-Link.
+ * Verarbeitet einen einzelnen Apple-Music-Song-Link (ganze URL).
+ * Holt den entsprechenden YouTube-Link via Odesli.
  */
 async function processSong(
-  link: string,
+  appleMusicLink: string,
   index: number,
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
-  const songId = getSongId(link);
-  if (!songId) {
-    console.warn(`Keine Song-ID für Link ${link} gefunden. Überspringe...`);
-    return;
-  }
+  // 1) Vollständigen Apple-Music-Link an Odesli geben
+  const youtubeUrl = await getOdesliLink(appleMusicLink);
 
-  const youtubeUrl = await getOdesliLink(songId);
   if (!youtubeUrl) {
-    console.warn(`Kein YouTube-Link für Song-ID ${songId}. Überspringe...`);
+    console.warn(`Kein YouTube-Link für AppleMusic-Link: ${appleMusicLink}. Überspringe...`);
     await interaction.followUp({
-      content: `⚠️ Song-ID **${songId}** konnte nicht in einen YouTube-Link umgewandelt werden. Überspringe...`,
+      content: `⚠️ **${appleMusicLink}** konnte nicht in einen YouTube-Link umgewandelt werden. Überspringe...`,
     });
     return;
   }
 
   try {
+    // 2) Song-Objekt erstellen
     const song = await Song.from(youtubeUrl, youtubeUrl);
     if (!interaction.guild) return;
 
     let queue = bot.queues.get(interaction.guild.id);
+    const member = interaction.member as GuildMember;
 
-    if (
-      !(interaction.member instanceof GuildMember) ||
-      !interaction.member.voice.channel
-    ) {
+    // 3) Member-Check
+    if (!member.voice.channel) {
       console.warn("Nutzer ist nicht in einem Voice-Channel. Breche ab.");
       return;
     }
 
+    // 4) Falls keine Queue existiert => Neue erstellen
     if (!queue) {
-      const channel = interaction.member.voice.channel as VoiceChannel;
+      const channel = member.voice.channel as VoiceChannel;
       queue = new MusicQueue({
         interaction,
         textChannel: interaction.channel as TextChannel,
         connection: joinVoiceChannel({
           channelId: channel.id,
           guildId: interaction.guild.id,
-          adapterCreator: channel.guild
-            .voiceAdapterCreator as DiscordGatewayAdapterCreator,
+          adapterCreator: channel.guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
         }),
       });
       bot.queues.set(interaction.guild.id, queue);
     }
 
+    // 5) Song in die Queue stecken
     queue.enqueue(song);
 
+    // 6) Falls Queue noch nicht spielt oder wir am Anfang sind: play()
     if ("play" in queue) {
       if (index < 2 || !queue.isPlaying) {
         queue.play();
@@ -296,22 +186,21 @@ async function processSong(
     }
   } catch (error) {
     if (error instanceof Error) {
-      // Spezifische Behandlung von "Video unavailable"
       if (error.message.includes("Video unavailable")) {
-        console.error(`Video nicht verfügbar für Song ${link}. Überspringe...`);
+        console.error(`Video nicht verfügbar für Song: ${appleMusicLink}. Überspringe...`);
         await interaction.followUp({
-          content: `❌ Das YouTube-Video für den Song **${link}** ist nicht verfügbar. Überspringe...`,
+          content: `❌ Das YouTube-Video für den Song **${appleMusicLink}** ist nicht verfügbar. Überspringe...`,
         });
       } else {
-        console.error(`Fehler beim Verarbeiten des Songs ${link}: ${error.message}`);
+        console.error(`Fehler beim Verarbeiten des Songs ${appleMusicLink}: ${error.message}`);
         await interaction.followUp({
-          content: `⚠️ Ein Fehler ist beim Verarbeiten des Songs **${link}** aufgetreten: ${error.message}. Überspringe...`,
+          content: `⚠️ Ein Fehler ist beim Verarbeiten von **${appleMusicLink}** aufgetreten: ${error.message}. Überspringe...`,
         });
       }
     } else {
-      console.error(`Unbekannter Fehler beim Verarbeiten des Songs ${link}:`, error);
+      console.error(`Unbekannter Fehler beim Verarbeiten des Songs: ${appleMusicLink}`, error);
       await interaction.followUp({
-        content: `⚠️ Ein unbekannter Fehler ist beim Verarbeiten des Songs **${link}** aufgetreten. Überspringe...`,
+        content: `⚠️ Ein unbekannter Fehler ist beim Verarbeiten von **${appleMusicLink}** aufgetreten. Überspringe...`,
       });
     }
   }
