@@ -30,7 +30,7 @@ export class Song {
     if (isYoutubeUrl) {
       try {
         songInfo = await ytdl.getBasicInfo(url);
-        console.log("YouTube Link:", url); // Nur den YouTube-Link anzeigen
+        //console.log("YouTube Link:", url); // Nur den YouTube-Link anzeigen
       } catch (error) {
         console.error("Fehler beim Abrufen der Song-Info:", error);
         throw error;
@@ -53,7 +53,7 @@ export class Song {
 
       try {
         songInfo = await ytdl.getBasicInfo(`https://youtube.com/watch?v=${result.id}`);
-        console.log("YouTube Link:", `https://youtube.com/watch?v=${result.id}`); // Nur den YouTube-Link anzeigen
+        //console.log("YouTube Link:", `https://youtube.com/watch?v=${result.id}`); // Nur den YouTube-Link anzeigen
       } catch (error) {
         console.error("Fehler beim Abrufen der Song-Info (Suche):", error);
         throw error;
