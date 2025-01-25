@@ -41,12 +41,12 @@ export class MusicQueue {
   public readonly textChannel: TextChannel;
   public readonly bot = bot;
 
-  public resource: AudioResource;
+  public resource: AudioResource | undefined;
   public songs: Song[] = [];
   public volume = config.DEFAULT_VOLUME || 100;
   public loop = false;
   public muted = false;
-  public waitTimeout: NodeJS.Timeout | null;
+  public waitTimeout: NodeJS.Timeout | null = null;
   private queueLock = false;
   private readyLock = false;
   private stopped = false;
@@ -56,12 +56,14 @@ export class MusicQueue {
    * voice connection, and event listeners to manage voice state changes
    * and audio playback. It also handles network state changes to ensure
    * a stable connection for audio streaming.
-   * @param options
+   * @param options - The initialization options for the MusicQueue
    */
   public constructor(options: QueueOptions) {
     Object.assign(this, options);
 
-    this.player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Play } });
+    this.player = createAudioPlayer({
+      behaviors: { noSubscriber: NoSubscriberBehavior.Play }
+    });
     this.connection.subscribe(this.player);
 
     const networkStateChangeHandler = (
@@ -72,12 +74,17 @@ export class MusicQueue {
       clearInterval(newUdp?.keepAliveInterval);
     };
 
-    this.connection.on("stateChange", async (oldState: VoiceConnectionState, newState: VoiceConnectionState) => {
+    // Voice connection handling
+    this.connection.on("stateChange", async (oldState, newState) => {
       Reflect.get(oldState, "networking")?.off("stateChange", networkStateChangeHandler);
       Reflect.get(newState, "networking")?.on("stateChange", networkStateChangeHandler);
 
       if (newState.status === VoiceConnectionStatus.Disconnected) {
-        if (newState.reason === VoiceConnectionDisconnectReason.WebSocketClose && newState.closeCode === 4014) {
+        if (
+          newState.reason === VoiceConnectionDisconnectReason.WebSocketClose &&
+          newState.closeCode === 4014
+        ) {
+          // Beschreibt: Possibly kicked out etc.
           try {
             this.stop();
           } catch (e) {
@@ -85,14 +92,16 @@ export class MusicQueue {
             this.stop();
           }
         } else if (this.connection.rejoinAttempts < 5) {
-          await wait((this.connection.rejoinAttempts + 1) * 5_000);
+          // Warte, dann versuche rejoin
+          await wait((this.connection.rejoinAttempts + 1) * 5000);
           this.connection.rejoin();
         } else {
           this.connection.destroy();
         }
       } else if (
         !this.readyLock &&
-        (newState.status === VoiceConnectionStatus.Connecting || newState.status === VoiceConnectionStatus.Signalling)
+        (newState.status === VoiceConnectionStatus.Connecting ||
+          newState.status === VoiceConnectionStatus.Signalling)
       ) {
         this.readyLock = true;
         try {
@@ -109,18 +118,32 @@ export class MusicQueue {
       }
     });
 
+    // Player state changes
     this.player.on("stateChange", async (oldState: AudioPlayerState, newState: AudioPlayerState) => {
-      if (oldState.status !== AudioPlayerStatus.Idle && newState.status === AudioPlayerStatus.Idle) {
+      if (
+        oldState.status !== AudioPlayerStatus.Idle &&
+        newState.status === AudioPlayerStatus.Idle
+      ) {
+        // Song ist zu Ende
         if (this.loop && this.songs.length) {
+          // Rotiere das Array
           this.songs.push(this.songs.shift()!);
         } else {
+          // Next
           this.songs.shift();
-          if (!this.songs.length) return this.stop();
+          if (!this.songs.length) {
+            return this.stop();
+          }
         }
 
-        if (this.songs.length || this.resource.audioPlayer) this.processQueue();
-      } else if (oldState.status === AudioPlayerStatus.Buffering && newState.status === AudioPlayerStatus.Playing) {
-        this.sendPlayingMessage(newState);
+        if (this.songs.length || this.resource?.audioPlayer) {
+          this.processQueue();
+        }
+      } else if (
+        oldState.status === AudioPlayerStatus.Buffering &&
+        newState.status === AudioPlayerStatus.Playing
+      ) {
+        this.sendPlayingMessage(newState as AudioPlayerPlayingState);
       }
     });
 
@@ -137,14 +160,23 @@ export class MusicQueue {
     });
   }
 
+  /**
+   * Enqueues (appends) new songs to the queue and triggers processing.
+   * @param songs - The songs to add to the queue
+   */
   public enqueue(...songs: Song[]) {
     if (this.waitTimeout !== null) clearTimeout(this.waitTimeout);
     this.waitTimeout = null;
     this.stopped = false;
+
     this.songs = this.songs.concat(songs);
     this.processQueue();
   }
 
+  /**
+   * Stops the queue entirely: clears songs, stops the player,
+   * optionally leaves the voice channel after a timeout.
+   */
   public stop() {
     if (this.stopped) return;
 
@@ -153,7 +185,9 @@ export class MusicQueue {
     this.songs = [];
     this.player.stop();
 
-    !config.PRUNING && this.textChannel.send(i18n.__("play.queueEnded")).catch(console.error);
+    if (!config.PRUNING) {
+      this.textChannel.send(i18n.__("play.queueEnded")).catch(console.error);
+    }
 
     if (this.waitTimeout !== null) return;
 
@@ -165,51 +199,73 @@ export class MusicQueue {
       }
       bot.queues.delete(this.interaction.guild!.id);
 
-      !config.PRUNING && this.textChannel.send(i18n.__("play.leaveChannel"));
+      if (!config.PRUNING) {
+        this.textChannel.send(i18n.__("play.leaveChannel"));
+      }
     }, config.STAY_TIME * 1000);
   }
 
   /**
-   * Processes the song queue for playback. This method checks if the queue is locked or if the player
-   * is busy. If not, it proceeds to play the next song in the queue. This method is also responsible
-   * for handling playback errors and retrying song playback when necessary. It ensures that the queue
-   * continues to play smoothly, handling transitions between songs, including loop and stop behaviors.
+   * Attempts to play the next song in the queue if the player is idle
+   * and the queue is unlocked.
    */
   public async processQueue(): Promise<void> {
     if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
       return;
     }
-  
+
     if (!this.songs.length) {
       return this.stop();
     }
-  
+
     this.queueLock = true;
-  
-    // Versuche, den nächsten Song in der Queue abzuspielen
+
     const nextSong = this.songs[0];
     try {
       const resource = await nextSong.makeResource();
-      this.resource = resource!;
+      if (!resource) {
+        // Falls resource null/undefined => skip
+        this.songs.shift();
+        return this.processQueue();
+      }
+
+      this.resource = resource;
       this.player.play(this.resource);
+
+      // Lautstärke
       this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
+
     } catch (error) {
-      // Hier handhaben wir den Fehler und überspringen den Song
       console.error(`Fehler beim Abspielen des Songs: ${error}`);
-      this.songs.shift(); // Entferne den fehlerhaften Song aus der Queue
-  
+      this.songs.shift();
+
       if (this.textChannel) {
-        this.textChannel.send(
-          `Ein Fehler ist aufgetreten beim Abspielen des Songs **${nextSong.title}** und er wurde übersprungen.`
-        ).catch(console.error);
+        this.textChannel
+          .send(
+            `Ein Fehler ist aufgetreten beim Abspielen des Songs **${nextSong.title}** und er wurde übersprungen.`
+          )
+          .catch(console.error);
       }
     } finally {
       this.queueLock = false;
-      // Rufe processQueue erneut auf, um den nächsten Song zu verarbeiten
       if (this.songs.length) this.processQueue();
     }
   }
 
+  /**
+   * Shuffle the entire queue (including the first position),
+   * so that the very first song to play is random.
+   */
+  public shuffle(): void {
+    if (this.songs.length < 2) return;
+
+    for (let i = this.songs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.songs[i], this.songs[j]] = [this.songs[j], this.songs[i]];
+    }
+  }
+
+  // -------------- Buttons (Skip, Pause, etc.) --------------
   private async handleSkip(interaction: ButtonInteraction): Promise<void> {
     await this.bot.slashCommandsMap.get("skip")!.execute(interaction);
   }
@@ -228,42 +284,38 @@ export class MusicQueue {
     this.muted = !this.muted;
 
     if (this.muted) {
-      this.resource.volume?.setVolumeLogarithmic(0);
-
+      this.resource?.volume?.setVolumeLogarithmic(0);
       safeReply(interaction, i18n.__mf("play.mutedSong", { author: interaction.user })).catch(console.error);
     } else {
-      this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
-
+      this.resource?.volume?.setVolumeLogarithmic(this.volume / 100);
       safeReply(interaction, i18n.__mf("play.unmutedSong", { author: interaction.user })).catch(console.error);
     }
   }
 
   private async handleDecreaseVolume(interaction: ButtonInteraction): Promise<void> {
-    if (this.volume == 0) return;
-
+    if (this.volume === 0) return;
     if (!canModifyQueue(interaction.member as GuildMember)) return;
 
     this.volume = Math.max(this.volume - 10, 0);
+    this.resource?.volume?.setVolumeLogarithmic(this.volume / 100);
 
-    this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
-
-    safeReply(interaction, i18n.__mf("play.decreasedVolume", { author: interaction.user, volume: this.volume })).catch(
-      console.error
-    );
+    safeReply(interaction, i18n.__mf("play.decreasedVolume", {
+      author: interaction.user,
+      volume: this.volume
+    })).catch(console.error);
   }
 
   private async handleIncreaseVolume(interaction: ButtonInteraction): Promise<void> {
-    if (this.volume == 100) return;
-
+    if (this.volume === 100) return;
     if (!canModifyQueue(interaction.member as GuildMember)) return;
 
     this.volume = Math.min(this.volume + 10, 100);
+    this.resource?.volume?.setVolumeLogarithmic(this.volume / 100);
 
-    this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
-
-    safeReply(interaction, i18n.__mf("play.increasedVolume", { author: interaction.user, volume: this.volume })).catch(
-      console.error
-    );
+    safeReply(interaction, i18n.__mf("play.increasedVolume", {
+      author: interaction.user,
+      volume: this.volume
+    })).catch(console.error);
   }
 
   private async handleLoop(interaction: ButtonInteraction): Promise<void> {
@@ -307,12 +359,8 @@ export class MusicQueue {
   }
 
   /**
-   * Sets up a message component collector for the playing message to handle
-   * button interactions. This collector listens for button clicks and dispatches
-   * commands based on the custom ID of the clicked button. It supports functionalities
-   * like skip, stop, play/pause, volume control, and more. The collector is also
-   * responsible for stopping itself when the corresponding song is skipped or stopped,
-   * ensuring that interactions are only valid for the current playing song.
+   * Sends a message indicating which song is playing, including player controls
+   * as interactive buttons. The message is deleted or buttons removed after end of track.
    */
   private async sendPlayingMessage(newState: AudioPlayerPlayingState) {
     const song = (newState.resource as AudioResource<Song>).metadata;
@@ -331,7 +379,6 @@ export class MusicQueue {
     }
 
     const filter = (i: Interaction) => i.isButton() && i.message.id === playingMessage.id;
-
     const collector = playingMessage.createMessageComponentCollector({
       filter,
       time: song.duration > 0 ? song.duration * 1000 : 60000
@@ -343,33 +390,31 @@ export class MusicQueue {
 
       const handler = this.commandHandlers.get(interaction.customId);
 
+      // skip/stop => collector end
       if (["skip", "stop"].includes(interaction.customId)) collector.stop();
 
       if (handler) await handler.call(this, interaction);
     });
 
     collector.on("end", () => {
-      // Remove the buttons when the song ends
       playingMessage.edit({ components: [] }).catch(console.error);
 
-      // Delete the message if pruning is enabled
+      // ggf. auto-delete
       if (config.PRUNING) {
         setTimeout(() => {
           playingMessage.delete().catch();
         }, 3000);
       }
     });
-
   }
 
-  // Hinzufügen der isPlaying Eigenschaft
+  // Getter: isPlaying
   get isPlaying(): boolean {
     return this.player.state.status === AudioPlayerStatus.Playing;
   }
 
-  // Hinzufügen der play Methode
-  play() {
+  // Start playback
+  public play() {
     this.processQueue();
   }
-  
 }

@@ -96,7 +96,12 @@
 		"startedPlaylist": "<@{author}> Started a playlist",
 		"cantJoinChannel": "Could not join the channel: {error}",
 		"errorNotSupported": "playlist.errorNotSupported",
-		"errorNoYoutubeLink": "playlist.errorNoYoutubeLink"
+		"errorNoYoutubeLink": "playlist.errorNoYoutubeLink",
+		"optionPlaylist": "playlist.optionPlaylist",
+		"optionShuffle": "playlist.optionShuffle",
+		"errorYoutubeGeneric": "playlist.errorYoutubeGeneric",
+		"addedSpotifySongs": "playlist.addedSpotifySongs",
+		"shuffleEnabled": "playlist.shuffleEnabled"
 	},
 	"pruning": {
 		"description": "Toggle pruning of bot messages",
