@@ -21,7 +21,7 @@ import { config } from "../utils/config";
 import {
   playlistPattern,
   appleMusicPattern,
-  spotifyPattern
+  spotifyPattern,
 } from "../utils/patterns";
 import { getSpotifyTracks } from "../utils/spotifyUtils";
 import { processAppleMusicPlaylist } from "../utils/appleMusicUtils";
@@ -34,8 +34,14 @@ export default {
     .addStringOption((option) =>
       option
         .setName("playlist")
-        .setDescription("Playlist name or link")
+        .setDescription(i18n.__("playlist.optionPlaylist"))
         .setRequired(true)
+    )
+    .addBooleanOption((option) =>
+      option
+        .setName("shuffle")
+        .setDescription(i18n.__("playlist.optionShuffle"))
+        .setRequired(false)
     ),
   cooldown: 5,
   permissions: [PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.Speak],
@@ -44,13 +50,13 @@ export default {
     await interaction.deferReply();
 
     if (!interaction.guild) {
-      await interaction.editReply(
-        "Dieser Befehl kann nicht außerhalb eines Servers verwendet werden."
-      );
+      await interaction.editReply(i18n.__("playlist.errorNoGuild"));
       return;
     }
 
     const argPlaylistUrl = interaction.options.getString("playlist") ?? "";
+    const doShuffle = interaction.options.getBoolean("shuffle") ?? false;
+
     const guildMember = interaction.guild.members.cache.get(interaction.user.id);
     const channel =
       guildMember?.voice.channel instanceof VoiceChannel
@@ -64,72 +70,100 @@ export default {
       return;
     }
 
-    if (config.DEBUG) console.log(`[Playlist] Verarbeite Playlist-URL: ${argPlaylistUrl}`);
+    if (config.DEBUG) {
+      console.log(`[Playlist] URL: ${argPlaylistUrl}`);
+      console.log(`[Playlist] Shuffle direkt starten? ${doShuffle}`);
+    }
 
+    // --- SPOTIFY ---
     if (argPlaylistUrl.includes("spotify.com")) {
-      // Spotify-Playlist (oder Album)
       try {
-        if (config.DEBUG) console.log("[Playlist] Spotify-Playlist erkannt.");
-    
+        if (config.DEBUG) console.log("[Playlist] -> Spotify erkannt.");
+
         const spotifyTrackUrls = await getSpotifyTracks(argPlaylistUrl);
-        if (config.DEBUG) console.log(`[Playlist] Gefundene Spotify-Track-URLs: ${spotifyTrackUrls}`);
-    
+        if (config.DEBUG) {
+          console.log(`[Playlist] Anzahl gefundener Spotify-Links: ${spotifyTrackUrls.length}`);
+        }
+
         if (spotifyTrackUrls.length === 0) {
-          await interaction.editReply("Keine Spotify-Songs gefunden.");
+          await interaction.editReply(i18n.__("playlist.errorSpotifyNoSongs"));
           return;
         }
 
-        // Erste zwei Songs synchron abarbeiten
+        // 1) Erste zwei Songs synchron abarbeiten
         const firstTwo = spotifyTrackUrls.slice(0, 2);
         for (const spotifyUrl of firstTwo) {
           await processOneSpotifySong(interaction, spotifyUrl, channel);
         }
 
-        // Prüfe, ob schon etwas in der Queue liegt
+        // 2) Prüfen, ob Queue existiert und ob Songs drin sind
         const queue = bot.queues.get(interaction.guild.id);
         if (!queue || queue.songs.length === 0) {
-          await interaction.followUp({
-            content: "Keine Songs konnten zur Warteschlange hinzugefügt werden.",
-          });
+          await interaction.followUp(i18n.__("playlist.errorQueueEmpty"));
           return;
         }
 
-        // Rest asynchron abarbeiten
+        // 3) Rest asynchron
         const remaining = spotifyTrackUrls.slice(2);
         for (const spotifyUrl of remaining) {
           processOneSpotifySong(interaction, spotifyUrl, channel).catch(console.error);
         }
 
+        // 4) Falls Shuffle gewünscht, kleinen Timeout bevor gemischt wird
+        if (doShuffle) {
+          setTimeout(() => {
+            if (queue.songs.length > 1) {
+              queue.shuffle();
+              interaction.followUp(i18n.__("playlist.shuffleEnabled"));
+            }
+          }, 2000);
+        }
+
         await interaction.followUp(
-          `Füge **${spotifyTrackUrls.length}** Spotify-Songs hinzu ...`
+          i18n.__mf("playlist.addedSpotifySongs", { count: spotifyTrackUrls.length })
         );
+
       } catch (error) {
-        console.error("[Playlist] Fehler beim Verarbeiten der Spotify-Playlist:", error);
-        await interaction.editReply("Es gab ein Problem beim Verarbeiten der Spotify-Playlist.");
+        console.error("[Playlist] Fehler (Spotify):", error);
+        await interaction.editReply(i18n.__("playlist.errorSpotifyGeneric"));
       }
+
+    // --- APPLE MUSIC ---
     } else if (argPlaylistUrl.includes("music.apple.com")) {
-      // Apple-Music-Playlist
       try {
-        if (config.DEBUG) console.log("[Playlist] Apple-Music-Playlist erkannt.");
+        if (config.DEBUG) console.log("[Playlist] -> Apple Music erkannt.");
         await processAppleMusicPlaylist(argPlaylistUrl, interaction);
+
+        // Shuffle erst nachdem processAppleMusicPlaylist() gestartet ist
+        // => wir warten einige Sekunden, bis die Songs eingereiht sind
+        if (doShuffle) {
+          setTimeout(() => {
+            const queue = bot.queues.get(interaction.guild!.id);
+            if (queue && queue.songs.length > 1) {
+              queue.shuffle();
+              interaction.followUp(i18n.__("playlist.shuffleEnabled"));
+            }
+          }, 5000);
+        }
       } catch (error) {
-        console.error("[Playlist] Fehler beim Verarbeiten der Apple-Music-Playlist:", error);
-        await interaction.editReply("Es gab ein Problem beim Verarbeiten der Apple-Music-Playlist.");
+        console.error("[Playlist] Fehler (Apple Music):", error);
+        await interaction.editReply(i18n.__("playlist.errorAppleGeneric"));
       }
+
+    // --- YOUTUBE / ANDERE PLAYLIST ---
     } else {
-      // YouTube-Playlist oder andere Plattform
       try {
-        if (config.DEBUG) console.log("[Playlist] YouTube-Playlist oder andere Plattform erkannt.");
+        if (config.DEBUG) console.log("[Playlist] -> YouTube/Andere erkannt.");
 
         const playlist = await Playlist.from(argPlaylistUrl);
         if (!playlist?.videos?.length) {
-          await interaction.editReply("Keine Songs in der YouTube-Playlist gefunden");
+          await interaction.editReply(i18n.__("playlist.errorYoutubeNoSongs"));
           return;
         }
 
         let queue = bot.queues.get(interaction.guild.id);
         if (!queue) {
-          if (config.DEBUG) console.log("[Playlist] Erstelle neue MusicQueue.");
+          if (config.DEBUG) console.log("[Playlist] -> neue Queue erstellen");
           queue = new MusicQueue({
             interaction,
             textChannel: interaction.channel as TextChannel,
@@ -141,91 +175,94 @@ export default {
           });
           bot.queues.set(interaction.guild.id, queue);
         }
+
         queue.enqueue(...playlist.videos);
+
+        // Hier können wir direkt shufflen, weil wir synchron alle Songs haben
+        if (doShuffle && queue.songs.length > 1) {
+          queue.shuffle();
+          await interaction.followUp(i18n.__("playlist.shuffleEnabled"));
+        }
+
         await interaction.followUp(
-          `YouTube-Playlist mit **${playlist.videos.length}** Songs hinzugefügt!`
+          i18n.__mf("playlist.addedYoutubeSongs", { count: playlist.videos.length })
         );
+
       } catch (error) {
-        console.error("[Playlist] Fehler beim Verarbeiten der YouTube-Playlist:", error);
-        await interaction.editReply("Es gab ein Problem beim Verarbeiten der YouTube-Playlist.");
+        console.error("[Playlist] Fehler (YouTube/Other):", error);
+        await interaction.editReply(i18n.__("playlist.errorYoutubeGeneric"));
       }
     }
   },
 };
 
-/**
- * Verarbeitet einen einzigen Spotify-Track-Eintrag (Spotify-URL).
- * Sucht den YouTube-Link via platformUtils.convertToYouTubeLink().
- */
-/**
- * Verarbeitet einen einzigen Spotify-Track-Eintrag (Spotify-URL).
- * Sucht den YouTube-Link via platformUtils.convertToYouTubeLink().
- */
+// ------------------------------------------------
+// HILFSFUNKTION FÜR EINEN SPOTIFY-TRACK
+// ------------------------------------------------
 async function processOneSpotifySong(
   interaction: ChatInputCommandInteraction,
   spotifyUrl: string,
   voiceChannel: VoiceChannel
 ): Promise<void> {
   try {
-    if (config.DEBUG) console.log(`[Playlist] Verarbeite Spotify-URL: ${spotifyUrl}`);
+    if (config.DEBUG) console.log(`[Playlist] -> processOneSpotifySong: ${spotifyUrl}`);
 
-    // Konvertiere Spotify-URL zu YouTube-URL
+    // 1) Spotify => YouTube
     const youtubeUrl = await convertToYouTubeLink(spotifyUrl);
     if (!youtubeUrl) {
-      if (config.DEBUG) console.warn(`[Playlist] Kein YouTube-Link gefunden für Spotify-URL: ${spotifyUrl}`);
-      console.warn("Kein YouTube-Link gefunden für:", spotifyUrl);
+      if (config.DEBUG) console.warn("[Playlist] -> Kein YouTube-Link gefunden");
       return;
     }
 
-    if (config.DEBUG) console.log(`[Playlist] Gefundene YouTube-URL: ${youtubeUrl}`);
-
-    // Song-Objekt erstellen und zur Queue hinzufügen
+    // 2) Song-Objekt
     const song = await Song.from(youtubeUrl);
     if (!song) {
-      if (config.DEBUG) console.warn(`[Playlist] Fehler beim Erstellen des Songs von YouTube-URL: ${youtubeUrl}`);
-      console.warn("Fehler beim Erstellen des Songs von:", youtubeUrl);
+      if (config.DEBUG) console.warn("[Playlist] -> Song.from() schlug fehl");
       return;
     }
 
+    // 3) Queue anlegen oder holen
     let queue = bot.queues.get(interaction.guild!.id);
     if (!queue) {
-      if (config.DEBUG) console.log("[Playlist] Erstelle neue MusicQueue in processOneSpotifySong.");
+      if (config.DEBUG) console.log("[Playlist] -> Neue Queue bei Spotify-Song erstellen");
       queue = new MusicQueue({
         interaction,
         textChannel: interaction.channel as TextChannel,
         connection: joinVoiceChannel({
           channelId: voiceChannel.id,
           guildId: voiceChannel.guild.id,
-          adapterCreator: voiceChannel.guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
+          adapterCreator: voiceChannel.guild
+            .voiceAdapterCreator as DiscordGatewayAdapterCreator,
         }),
       });
       bot.queues.set(interaction.guild!.id, queue);
     }
 
+    // 4) Song einreihen
     queue.enqueue(song);
 
+    // 5) Falls nicht spielt, abspielen
     if (!queue.isPlaying) {
-      if (config.DEBUG) console.log("[Playlist] Starte die Wiedergabe der Warteschlange.");
+      if (config.DEBUG) console.log("[Playlist] -> Spiele Queue jetzt ab");
       queue.play();
     }
 
     if (config.DEBUG) console.log(`[Playlist] Song hinzugefügt: ${song.title}`);
-  } catch (error: any) {
-    // Verschiedene Fehlermeldungen abfangen
-    const errorMsg = (error && error.message) ? error.message : "";
 
+  } catch (error: any) {
+    const errorMsg = error?.message ?? "";
+
+    // Verschiedene Fehlermeldungen
     if (errorMsg.includes("Sign in to confirm your age")) {
-      console.warn(`[Spotify-Song] Altersbeschränkung (Age Restriction) bei: ${spotifyUrl}`);
+      console.warn(`[Spotify-Song] -> Altersbeschränkung bei: ${spotifyUrl}`);
     } else if (errorMsg.includes("Video unavailable")) {
-      console.warn(`[Spotify-Song] Video nicht verfügbar (Geo-/Blocking) bei: ${spotifyUrl}`);
+      console.warn(`[Spotify-Song] -> Video gesperrt/geo-blocked: ${spotifyUrl}`);
     } else {
-      // Generische Fehlermeldung
-      console.error(`Fehler beim Spotify-Song ${spotifyUrl}`, error);
+      console.error(`[Spotify-Song] -> Fehler: ${spotifyUrl}`, error);
     }
 
-    // Optional: Falls du im Debug-Modus doch den ganzen Stacktrace willst
     if (config.DEBUG) {
-      console.error(`[Spotify-Song] Komplettes Error-Objekt:`, error);
+      console.error("[Spotify-Song] -> Stacktrace:", error);
     }
   }
 }
