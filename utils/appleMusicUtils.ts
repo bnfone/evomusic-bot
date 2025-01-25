@@ -17,6 +17,7 @@ import { joinVoiceChannel, DiscordGatewayAdapterCreator } from "@discordjs/voice
 import { Song } from "../structs/Song";
 import { MusicQueue } from "../structs/MusicQueue";
 import { bot } from "../index";
+import { i18n } from "./i18n"; // Stelle sicher, dass i18n korrekt importiert ist
 
 /**
  * Extrahiert alle Song-Links (Apple Music Song-URLs) aus dem HTML einer Playlist.
@@ -76,8 +77,8 @@ export async function processAppleMusicPlaylist(
 
   // Nachricht an den Benutzer senden, dass die Playlist erkannt wurde
   await interaction.editReply({
-    content: `🎵 Playlist erkannt! Verarbeite **${links.length} Songs**...`,
-  });
+    content: i18n.__mf("appleMusicUtils.playlistDetected", { count: links.length }),
+  }).catch(console.error);
 
   try {
     // Ersten Song synchron
@@ -86,8 +87,8 @@ export async function processAppleMusicPlaylist(
 
     // Nachricht senden, dass die Wiedergabe gestartet wurde
     await interaction.followUp({
-      content: `✅ Die Wiedergabe wurde gestartet! Die restlichen Songs werden verarbeitet.`,
-    });
+      content: i18n.__("appleMusicUtils.playbackStarted"),
+    }).catch(console.error);
 
     // Restliche Songs asynchron verarbeiten
     const remainingSongs = links.slice(1);
@@ -116,14 +117,14 @@ async function sendEmptyPlaylistMessage(
 ) {
   const playlistEmbed = new EmbedBuilder()
     .setTitle(url)
-    .setDescription("Keine Lieder in der Playlist gefunden.")
+    .setDescription(i18n.__("appleMusicUtils.noSongsFound"))
     .setColor("#F8AA2A")
     .setTimestamp();
 
   await interaction.editReply({
-    content: "Die Playlist wurde verarbeitet, aber es wurden keine Songs gefunden.",
+    content: i18n.__("appleMusicUtils.playlistProcessedNoSongs"),
     embeds: [playlistEmbed],
-  });
+  }).catch(console.error);
 }
 
 /**
@@ -141,8 +142,8 @@ async function processSong(
   if (!youtubeUrl) {
     console.warn(`Kein YouTube-Link für AppleMusic-Link: ${appleMusicLink}. Überspringe...`);
     await interaction.followUp({
-      content: `⚠️ **${appleMusicLink}** konnte nicht in einen YouTube-Link umgewandelt werden. Überspringe...`,
-    });
+      content: i18n.__mf("appleMusicUtils.youtubeLinkNotConverted", { link: appleMusicLink }),
+    }).catch(console.error);
     return;
   }
 
@@ -184,24 +185,24 @@ async function processSong(
         queue.play();
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof Error) {
       if (error.message.includes("Video unavailable")) {
         console.error(`Video nicht verfügbar für Song: ${appleMusicLink}. Überspringe...`);
         await interaction.followUp({
-          content: `❌ Das YouTube-Video für den Song **${appleMusicLink}** ist nicht verfügbar. Überspringe...`,
-        });
+          content: i18n.__mf("appleMusicUtils.videoUnavailable", { link: appleMusicLink }),
+        }).catch(console.error);
       } else {
         console.error(`Fehler beim Verarbeiten des Songs ${appleMusicLink}: ${error.message}`);
         await interaction.followUp({
-          content: `⚠️ Ein Fehler ist beim Verarbeiten von **${appleMusicLink}** aufgetreten: ${error.message}. Überspringe...`,
-        });
+          content: i18n.__mf("common.errorCommandWithDetails", { error: error.message }),
+        }).catch(console.error);
       }
     } else {
       console.error(`Unbekannter Fehler beim Verarbeiten des Songs: ${appleMusicLink}`, error);
       await interaction.followUp({
-        content: `⚠️ Ein unbekannter Fehler ist beim Verarbeiten von **${appleMusicLink}** aufgetreten. Überspringe...`,
-      });
+        content: i18n.__("common.errorCommand"),
+      }).catch(console.error);
     }
   }
 }
