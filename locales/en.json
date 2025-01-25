@@ -56,45 +56,46 @@
 	  "result": "📈 Average ping to API: {ping} ms"
 	},
 	"play": {
-	  "description": "Plays audio from YouTube",
+	  "description": "Plays audio from Apple Music, Spotify or YouTube",
+	  "optionSong": "The song you want to play",
 	  "errorNotChannel": "You need to join a voice channel first!",
-	  "errorNotInSameChannel": "You must be in the same channel as {user}",
+	  "errorNotInSameChannel": "You must be in the same channel as {user}.",
 	  "usageReply": "Usage: {prefix}play <YouTube URL | Video Name>",
-	  "missingPermissionConnect": "Cannot connect to voice channel, missing permissions",
-	  "missingPermissionSpeak": "I cannot speak in this voice channel, make sure I have the proper permissions!",
-	  "queueAdded": "✅ **{title}** has been added to the queue by <@{author}>",
-	  "cantJoinChannel": "Could not join the channel: {error}",
+	  "missingPermissionConnect": "Cannot connect to voice channel, missing permissions.",
+	  "missingPermissionSpeak": "I cannot speak in this voice channel. Make sure I have the proper permissions!",
+	  "queueAdded": "✅ **{title}** has been added to the queue by <@{author}>.",
+	  "cantJoinChannel": "Could not join the channel: {error}.",
 	  "queueEnded": "❌ Music queue ended.",
-	  "queueError": "Error: {error}",
-	  "startedPlaying": "🎶 Started playing: **{title}** {url}",
-	  "skipSong": "<@{author}> ⏩ skipped the song",
+	  "queueError": "Error: {error}.",
+	  "startedPlaying": "🎶 Started playing: **{title}** {url}.",
+	  "skipSong": "<@{author}> ⏩ skipped the song.",
 	  "pauseSong": "<@{author}> ⏸ paused the music.",
 	  "resumeSong": "<@{author}> ▶ resumed the music!",
 	  "unmutedSong": "<@{author}> 🔊 unmuted the music!",
 	  "mutedSong": "<@{author}> 🔇 muted the music!",
-	  "decreasedVolume": "<@{author}> 🔉 decreased the volume, the volume is now {volume}%",
-	  "increasedVolume": "<@{author}> 🔊 increased the volume, the volume is now {volume}%",
-	  "loopSong": "<@{author}> Loop is now {loop}",
+	  "decreasedVolume": "<@{author}> 🔉 decreased the volume. The volume is now {volume}%.",
+	  "increasedVolume": "<@{author}> 🔊 increased the volume. The volume is now {volume}%.",
+	  "loopSong": "<@{author}> Loop is now {loop}.",
 	  "stopSong": "<@{author}> ⏹ stopped the music!",
 	  "leaveChannel": "Leaving voice channel...",
-	  "songNotFound": "Audio Not Found",
-	  "songAccessErr": "Video is age restricted, private or unavailable",
-	  "errorNoResults": "No results found for {url}",
-	  "errorInvalidURL": "Invalid URL, please try a search or YouTube URL",
+	  "songNotFound": "Audio Not Found.",
+	  "songAccessErr": "Video is age restricted, private, or unavailable.",
+	  "errorNoResults": "No results found for {url}.",
+	  "errorInvalidURL": "Invalid URL. Please try a search or a YouTube URL.",
 	  "startedPlayingRadio": "🎧 Started playing the radio."
 	},
 	"playlist": {
 	  "description": "Play a playlist from Spotify or Apple Music",
 	  "usagesReply": "Usage: {prefix}playlist <YouTube Playlist URL | Playlist Name>",
 	  "errorNotChannel": "You need to join a voice channel first!",
-	  "errorNotInSameChannel": "You must be in the same channel as {user}",
-	  "missingPermissionConnect": "Cannot connect to voice channel, missing permissions",
-	  "missingPermissionSpeak": "I cannot speak in this voice channel, make sure I have the proper permissions!",
+	  "errorNotInSameChannel": "You must be in the same channel as {user}.",
+	  "missingPermissionConnect": "Cannot connect to voice channel, missing permissions.",
+	  "missingPermissionSpeak": "I cannot speak in this voice channel. Make sure I have the proper permissions!",
 	  "errorNotFoundPlaylist": "Playlist not found :(",
 	  "fetchingPlaylist": "⌛ Fetching the playlist...",
 	  "playlistCharLimit": "\nPlaylist exceeds character limit and cannot be processed completely.",
 	  "startedPlaylist": "<@{author}> Started a playlist.",
-	  "cantJoinChannel": "Could not join the channel: {error}",
+	  "cantJoinChannel": "Could not join the channel: {error}.",
 	  "errorNotSupported": "This playlist format is not supported.",
 	  "errorNoYoutubeLink": "No YouTube link found in the playlist.",
 	  "optionPlaylist": "YouTube Playlist URL or Name",
@@ -106,12 +107,12 @@
 	"pruning": {
 	  "description": "Toggle pruning of bot messages",
 	  "errorWritingFile": "There was an error writing to the file.",
-	  "result": "Message pruning is {result}"
+	  "result": "Message pruning is {result}."
 	},
 	"queue": {
 	  "description": "Show the music queue and now playing.",
-	  "missingPermissionMessage": "Missing permission to manage messages or add reactions",
-	  "errorNotQueue": "❌ **Nothing playing in this server**",
+	  "missingPermissionMessage": "Missing permission to manage messages or add reactions.",
+	  "errorNotQueue": "❌ **Nothing playing in this server.**",
 	  "currentPage": "Current Page - ",
 	  "embedTitle": "Song Queue\n",
 	  "embedCurrentSong": "**Current Song - [{title}]({url})**\n\n{info}"
@@ -136,24 +137,24 @@
 	  "resultEmbedTitle": "**Reply with the song number you want to play**",
 	  "resultEmbedDesc": "Results for: {search}",
 	  "optionQuery": "Search query",
-	  "noResults": "No results for query, please try something else"
+	  "noResults": "No results for query. Please try something else."
 	},
 	"shuffle": {
 	  "description": "Shuffle queue",
 	  "errorNotQueue": "There is no queue.",
-	  "result": "<@{author}> 🔀 shuffled the queue"
+	  "result": "<@{author}> 🔀 shuffled the queue."
 	},
 	"skip": {
 	  "description": "Skip the currently playing song",
 	  "errorNotQueue": "There is nothing playing that I could skip for you.",
-	  "result": "<@{author}> ⏭ skipped the song"
+	  "result": "<@{author}> ⏭ skipped the song."
 	},
 	"skipto": {
 	  "description": "Skip to the selected queue number",
 	  "usageReply": "Usage: {prefix}{name} <Queue Number>",
 	  "errorNotQueue": "There is no queue.",
 	  "errorNotValid": "The queue is only {length} songs long!",
-	  "result": "<@{author}> ⏭ skipped {arg} songs",
+	  "result": "<@{author}> ⏭ skipped {arg} songs.",
 	  "args": {
 		"number": "The queue number to skip to"
 	  }
@@ -174,7 +175,7 @@
 	  "currentVolume": "🔊 The current volume is: **{volume}%**",
 	  "errorNotNumber": "Please use a number to set volume.",
 	  "errorNotValid": "Please use a number between 0 - 100.",
-	  "result": "Volume set to: **{arg}%**"
+	  "result": "Volume set to: **{arg}%**."
 	},
 	"common": {
 	  "on": "**on**",
@@ -183,11 +184,22 @@
 	  "disabled": "**disabled**",
 	  "errorNotChannel": "You need to join a voice channel first!",
 	  "cooldownMessage": "Please wait {time} more second(s) before reusing the `{name}` command.",
-	  "errorCommand": "There was an error executing that command."
+	  "errorCommand": "There was an error executing that command.",
+	  "loading": "⏳ Loading...",
+	  "errorCommandWithDetails": "⚠️ An error occurred while executing the command: {error}."
 	},
 	"Invite me to your server!": "Invite me to your server!",
 	"Invite": "Invite",
 	"playnext": {
 	  "description": "Plays a song after the current song :)"
+	},
+	"appleMusicUtils": {
+	  "playlistDetected": "🎵 Playlist detected! Processing **{count} songs**...",
+	  "playbackStarted": "✅ Playback started! Processing the remaining songs.",
+	  "youtubeLinkNotConverted": "⚠️ **{link}** could not be converted to a YouTube link. Skipping...",
+	  "videoUnavailable": "❌ The YouTube video for the song **{link}** is unavailable. Skipping...",
+	  "noSongsFound": "No songs found in the playlist.",
+	  "playlistProcessedNoSongs": "The playlist was processed, but no songs were found.",
+	  "fetchingPlaylist": "⌛ Fetching the playlist..."
 	}
   }

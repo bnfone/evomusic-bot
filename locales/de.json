@@ -56,7 +56,8 @@
     "result": "📈 Durchschnittliche Ping-Zeit zur API: {ping} ms"
   },
   "play": {
-    "description": "Spielt Audio von YouTube ab",
+    "description": "Spielt Audio von Spotify, Apple Music oder YouTube ab",
+    "optionSong": "Der Song, den du abspielen möchtest",
     "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!",
     "errorNotInSameChannel": "Du musst im selben Kanal wie {user} sein.",
     "usageReply": "Verwendung: {prefix}play <YouTube URL | Videoname>",
@@ -183,11 +184,22 @@
     "disabled": "**deaktiviert**",
     "errorNotChannel": "Du musst zuerst einem Sprachkanal beitreten!",
     "cooldownMessage": "Bitte warte noch {time} Sekunde(n), bevor du den Befehl `{name}` erneut verwendest.",
-    "errorCommand": "Beim Ausführen des Befehls ist ein Fehler aufgetreten."
+    "errorCommand": "Beim Ausführen des Befehls ist ein Fehler aufgetreten.",
+    "loading": "⏳ Lade...",
+    "errorCommandWithDetails": "⚠️ Ein Fehler ist beim Ausführen des Befehls aufgetreten: {error}."
   },
   "Invite me to your server!": "Lade mich auf deinen Server ein!",
   "Invite": "Einladen",
   "playnext": {
     "description": "Spielt ein Lied nach dem aktuellen Lied :)"
+  },
+  "appleMusicUtils": {
+    "playlistDetected": "🎵 Playlist erkannt! Verarbeite **{count} Songs**...",
+    "playbackStarted": "✅ Die Wiedergabe wurde gestartet! Die restlichen Songs werden verarbeitet.",
+    "youtubeLinkNotConverted": "⚠️ **{link}** konnte nicht in einen YouTube-Link umgewandelt werden. Überspringe...",
+    "videoUnavailable": "❌ Das YouTube-Video für den Song **{link}** ist nicht verfügbar. Überspringe...",
+    "noSongsFound": "Keine Lieder in der Playlist gefunden.",
+    "playlistProcessedNoSongs": "Die Playlist wurde verarbeitet, aber es wurden keine Songs gefunden.",
+    "fetchingPlaylist": "⌛ Lade die Playlist..."
   }
 }

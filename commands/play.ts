@@ -30,7 +30,7 @@ export default {
     .addStringOption((option) =>
       option
         .setName("song")
-        .setDescription("The song you want to play")
+        .setDescription(i18n.__("play.optionSong")) // Lokalisierte Beschreibung
         .setRequired(true)
     ),
   cooldown: 3,
@@ -71,9 +71,9 @@ export default {
     }
 
     if (interaction.replied) {
-      await interaction.editReply("⏳ Loading...").catch(console.error);
+      await interaction.editReply(i18n.__("common.loading")).catch(console.error);
     } else {
-      await interaction.reply("⏳ Loading...");
+      await interaction.reply(i18n.__("common.loading"));
     }
 
     if (config.DEBUG) console.log(`[Play] Verarbeite Song-Name oder Link: ${argSongName}`);
@@ -81,7 +81,7 @@ export default {
     // 1) Ist es eine Playlist?
     if (playlistPattern.test(argSongName)) {
       if (config.DEBUG) console.log("[Play] Playlist erkannt. Weiterleitung an /playlist Command.");
-      await interaction.editReply("🔗 Link ist playlist").catch(console.error);
+      await interaction.editReply(i18n.__("play.fetchingPlaylist")).catch(console.error);
       // Leite weiter zum /playlist Command
       return bot.slashCommandsMap.get("playlist")!.execute(interaction);
     }
