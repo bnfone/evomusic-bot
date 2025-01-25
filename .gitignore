@@ -70,3 +70,4 @@ config.json
 .DS_Store
 
 build-and-start-docker.sh
+cache.json
