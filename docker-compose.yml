@@ -14,6 +14,7 @@ services:
     #   - LOCALE=${LOCALE}
     #   - STAY_TIME=${STAY_TIME}
     #   - DEFAULT_VOLUME=${DEFAULT_VOLUME}
+    #   - DEBUG=true
     volumes:
       - ./config:/home/evobot/config
     restart: unless-stopped

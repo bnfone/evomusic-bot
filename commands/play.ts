@@ -15,17 +15,13 @@ import { bot } from "../index";
 import { MusicQueue } from "../structs/MusicQueue";
 import { Song } from "../structs/Song";
 import { i18n } from "../utils/i18n";
+import { config } from "../utils/config";
 import {
   playlistPattern,
   appleMusicPattern,
   spotifyPattern
 } from "../utils/patterns";
-
-// Importiere die Cache-gestützte Odesli-Logik
-import {
-  getOdesliDataWithCache,
-  getYouTubeLinkFromOdesliData
-} from "../utils/musicLinkConverter";
+import { convertToYouTubeLink } from "../utils/platformUtils";
 
 export default {
   data: new SlashCommandBuilder()
@@ -80,9 +76,12 @@ export default {
       await interaction.reply("⏳ Loading...");
     }
 
+    if (config.DEBUG) console.log(`[Play] Verarbeite Song-Name oder Link: ${argSongName}`);
+
     // 1) Ist es eine Playlist?
     if (playlistPattern.test(argSongName)) {
-      await interaction.editReply("🔗 Link is playlist").catch(console.error);
+      if (config.DEBUG) console.log("[Play] Playlist erkannt. Weiterleitung an /playlist Command.");
+      await interaction.editReply("🔗 Link ist playlist").catch(console.error);
       // Leite weiter zum /playlist Command
       return bot.slashCommandsMap.get("playlist")!.execute(interaction);
     }
@@ -94,14 +93,9 @@ export default {
       const platform = appleMusicPattern.test(argSongName) ? "appleMusic" : "spotify";
 
       try {
-        // Cache-gestützte Odesli-API nutzen
-        const odesliData = await getOdesliDataWithCache(argSongName);
-        if (!odesliData) {
-          throw new Error(i18n.__("play.errorNoResults"));
-        }
-
-        // YouTube-Link aus Odesli-Daten extrahieren
-        songUrl = getYouTubeLinkFromOdesliData(odesliData);
+        if (config.DEBUG) console.log(`[Play] Erkannt als ${platform}-Link. Konvertiere zu YouTube-Link.`);
+        // Konvertiere zu YouTube-Link via platformUtils
+        songUrl = await convertToYouTubeLink(argSongName);
         if (!songUrl) {
           throw new Error(i18n.__("play.errorNoResults"));
         }
@@ -115,6 +109,7 @@ export default {
 
     let song: Song;
     try {
+      if (config.DEBUG) console.log(`[Play] Erstelle Song-Objekt aus URL: ${songUrl}`);
       // Song-Objekt aus YouTube-Link erstellen
       song = await Song.from(songUrl!, argSongName);
     } catch (error: any) {
@@ -129,6 +124,7 @@ export default {
       queue.enqueue(song);
 
       // Informiere den Channel, dass der Song zur Warteschlange hinzugefügt wurde
+      if (config.DEBUG) console.log(`[Play] Füge Song zur bestehenden Queue hinzu: ${song.title}`);
       return (interaction.channel as TextChannel)
         .send({
           content: i18n.__mf("play.queueAdded", {
@@ -140,14 +136,15 @@ export default {
     }
 
     // Noch keine Queue => Neue erstellen
+    if (config.DEBUG) console.log("[Play] Erstelle neue MusicQueue.");
+
     const newQueue = new MusicQueue({
       interaction,
       textChannel: interaction.channel! as TextChannel,
       connection: joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
-        adapterCreator: channel.guild
-          .voiceAdapterCreator as DiscordGatewayAdapterCreator
+        adapterCreator: channel.guild.voiceAdapterCreator as DiscordGatewayAdapterCreator
       })
     });
 
@@ -155,6 +152,7 @@ export default {
     newQueue.enqueue(song);
 
     // "Loading"-Nachricht löschen
+    if (config.DEBUG) console.log("[Play] Starte Wiedergabe der Queue.");
     interaction.deleteReply().catch(console.error);
   }
 };

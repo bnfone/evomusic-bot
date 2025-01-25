@@ -14,7 +14,8 @@ try {
     DEFAULT_VOLUME: parseInt(process.env.DEFAULT_VOLUME!) || 100,
     LOCALE: process.env.LOCALE || "en",
     SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID || "",
-    SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET || ""
+    SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET || "",
+    DEBUG: process.env.DEBUG === "true"
   };
 }
 
