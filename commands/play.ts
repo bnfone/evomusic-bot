@@ -22,6 +22,7 @@ import {
   spotifyPattern
 } from "../utils/patterns";
 import { convertToYouTubeLink } from "../utils/platformUtils";
+import { isSongBlacklisted } from "../utils/blacklist";
 
 export default {
   data: new SlashCommandBuilder()
@@ -112,6 +113,10 @@ export default {
       if (config.DEBUG) console.log(`[Play] Erstelle Song-Objekt aus URL: ${songUrl}`);
       // Song-Objekt aus YouTube-Link erstellen
       song = await Song.from(songUrl!, argSongName);
+      // Check if the song is blacklisted
+      if (isSongBlacklisted(song.url)) {
+        return interaction.editReply({ content: "This song is blacklisted and cannot be played." });
+      }
     } catch (error: any) {
       console.error("Fehler beim Erstellen des Songs:", error);
       return interaction

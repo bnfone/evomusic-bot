@@ -55,6 +55,10 @@
     "sodium-native": "^4.1.1",
     "tweetnacl": "^1.0.3"
   },
+  "overrides": {
+    "axios": "1.8.2",
+    "undici": "6.21.1"
+  },
   "config": {
     "commitizen": {
       "path": "cz-conventional-changelog",

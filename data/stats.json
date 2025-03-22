@@ -1,0 +1,14 @@
+{
+  "songs": {},
+  "playlists": {},
+  "sources": {},
+  "totalListeningMinutes": {
+    "global": 0,
+    "perUser": {}
+  },
+  "totalSongsRequested": {
+    "global": 0,
+    "perUser": {}
+  },
+  "songRequests": {}
+}

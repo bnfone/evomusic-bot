@@ -26,6 +26,7 @@ import {
 import { getSpotifyTracks } from "../utils/spotifyUtils";
 import { processAppleMusicPlaylist } from "../utils/appleMusicUtils";
 import { convertToYouTubeLink } from "../utils/platformUtils";
+import { isSongBlacklisted } from "../utils/blacklist";
 
 export default {
   data: new SlashCommandBuilder()
@@ -216,6 +217,10 @@ async function processOneSpotifySong(
 
     // 2) Song-Objekt
     const song = await Song.from(youtubeUrl);
+    if (isSongBlacklisted(song.url)) {
+      await interaction.editReply({ content: "This song is blacklisted and cannot be played." });
+      return; // Return after sending the reply, ohne den Rückgabewert weiterzugeben.
+    }
     if (!song) {
       if (config.DEBUG) console.warn("[Playlist] -> Song.from() schlug fehl");
       return;

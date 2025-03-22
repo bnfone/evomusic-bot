@@ -17,8 +17,12 @@ import { config } from "../utils/config";
 import { i18n } from "../utils/i18n";
 import { MissingPermissionsException } from "../utils/MissingPermissionsException";
 import { MusicQueue } from "./MusicQueue";
-import { ActivityType } from 'discord.js';
-
+import { ActivityType } from "discord.js";
+// Import the blacklist and logging functions
+import { isUserBlacklisted, loadBlacklist } from "../utils/blacklist";
+import { logCommandUsage } from "../utils/dataStore";
+import { loadFavorites } from "../utils/favorites";
+import { loadStats } from "../utils/stats";
 
 export class Bot {
   public readonly prefix = "/";
@@ -29,25 +33,34 @@ export class Bot {
   public queues = new Collection<Snowflake, MusicQueue>();
 
   public constructor(public readonly client: Client) {
+    // Login the bot using the token from config
     this.client.login(config.TOKEN);
 
-    this.client.on("ready", () => {
+    this.client.on("ready", async () => {
       console.log(`${this.client.user!.username} ready!`);
-
+    
+      // Set the bot's presence
       this.client.user!.setPresence({
         activities: [{ name: 'Spotify & Apple Music', type: ActivityType.Listening }],
         status: 'online'
       });
-
+    
+      // Load persistent data (blacklist, favorites, etc.) before registering commands
+      await loadBlacklist().catch(console.error);
+      await loadFavorites().catch(console.error);
+      await loadStats().catch(console.error);
+    
       this.registerSlashCommands();
     });
 
     this.client.on("warn", (info) => console.log(info));
     this.client.on("error", console.error);
 
+    // Setup global interaction handler
     this.onInteractionCreate();
   }
 
+  // Registers all slash commands by reading the commands folder
   private async registerSlashCommands() {
     const rest = new REST({ version: "9" }).setToken(config.TOKEN);
 
@@ -63,14 +76,27 @@ export class Bot {
     await rest.put(Routes.applicationCommands(this.client.user!.id), { body: this.slashCommands });
   }
 
+  // Global handler for all incoming slash command interactions
   private async onInteractionCreate() {
     this.client.on(Events.InteractionCreate, async (interaction: Interaction): Promise<any> => {
+      // Only process chat input commands (slash commands)
       if (!interaction.isChatInputCommand()) return;
 
       const command = this.slashCommandsMap.get(interaction.commandName);
-
       if (!command) return;
 
+      // Global blacklist check: if user is blacklisted, do not execute command
+      if (isUserBlacklisted(interaction.user.id)) {
+        return interaction.reply({
+          content: "You are blacklisted and cannot execute this command.",
+          ephemeral: true
+        });
+      }
+
+      // Log the command usage globally for unified statistics
+      logCommandUsage(interaction.user.id, interaction.commandName);
+
+      // Setup cooldowns per command
       if (!this.cooldowns.has(interaction.commandName)) {
         this.cooldowns.set(interaction.commandName, new Collection());
       }
@@ -78,12 +104,10 @@ export class Bot {
       const now = Date.now();
       const timestamps = this.cooldowns.get(interaction.commandName)!;
       const cooldownAmount = (command.cooldown || 1) * 1000;
-
       const timestamp = timestamps.get(interaction.user.id);
 
       if (timestamp) {
         const expirationTime = timestamp + cooldownAmount;
-
         if (now < expirationTime) {
           const timeLeft = (expirationTime - now) / 1000;
           return interaction.reply({
@@ -100,8 +124,8 @@ export class Bot {
       setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
       try {
+        // Check if the user has the necessary permissions to execute the command
         const permissionsCheck: PermissionResult = await checkPermissions(command, interaction);
-
         if (permissionsCheck.result) {
           command.execute(interaction as ChatInputCommandInteraction);
         } else {
@@ -109,7 +133,6 @@ export class Bot {
         }
       } catch (error: any) {
         console.error(error);
-
         if (error.message.includes("permissions")) {
           interaction.reply({ content: error.toString(), ephemeral: true }).catch(console.error);
         } else {
