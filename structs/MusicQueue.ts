@@ -31,6 +31,7 @@ import { i18n } from "../utils/i18n";
 import { canModifyQueue } from "../utils/queue";
 import { Song } from "./Song";
 import { safeReply } from "../utils/safeReply";
+import { logSongPlayed, logSongSkipped } from "../utils/stats";
 
 const wait = promisify(setTimeout);
 
