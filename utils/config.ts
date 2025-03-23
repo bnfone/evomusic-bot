@@ -15,7 +15,8 @@ try {
     LOCALE: process.env.LOCALE || "en",
     SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID || "",
     SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET || "",
-    DEBUG: process.env.DEBUG === "true"
+    DEBUG: process.env.DEBUG === "true",
+    ADVERTISEMENT_INTERVAL: process.env.ADVERTISEMENT_INTERVAL ? parseInt(process.env.ADVERTISEMENT_INTERVAL) : 0
   };
 }
 

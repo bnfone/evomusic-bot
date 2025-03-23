@@ -8,4 +8,5 @@ export interface Config {
   DEFAULT_VOLUME: number;
   LOCALE: string;
   DEBUG?: boolean;
+  ADVERTISEMENT_INTERVAL?: number;
 }
