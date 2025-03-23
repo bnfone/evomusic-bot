@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./img/evomusic.png" height="90px" />
+  <img src=".github/_imgages/evomusic.png" height="90px" />
 </p>
 
 <h1 align="center"> EvoMusic - A Discord Music Bot</h1>
@@ -102,7 +102,7 @@ services:
 - 📱 Media Controls via Buttons
 - 🌍 Supports multiple locales
 
-![Preview](./img/bot-chat.png)
+![Preview](.github/_images/bot-chat.png)
 
 > **Note:** For Spotify and Apple Music integration, the bot converts the provided links to YouTube links before playing, ensuring compatibility and a broader range of music availability. The [Odesli.co API](https://odesli.co) is used for that.
 
