@@ -109,3 +109,9 @@ export function getGlobalFavorites(): { songUrl: string; title: string; count: n
   arr.sort((a, b) => b.count - a.count);
   return arr;
 }
+
+
+
+export function getFavoritesData(): { global: { [songUrl: string]: { title: string; count: number } }, individual: { [userId: string]: string[] } } {
+    return favorites;
+  }

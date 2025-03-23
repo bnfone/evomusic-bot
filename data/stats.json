@@ -1,10 +1,53 @@
 {
-  "songs": {},
+  "songs": {
+    "https://www.youtube.com/watch?v=2aogxVYGX_I": {
+      "played": 1,
+      "skipped": 0,
+      "requestedBy": {
+        "835680025087967233": 1
+      },
+      "title": "⚡🎵 Epic Electric Timer - 30 Seconds Countdown 🎵⚡"
+    },
+    "https://www.youtube.com/watch?v=QPO6PfTdYrI": {
+      "played": 0,
+      "skipped": 1,
+      "requestedBy": {},
+      "title": "1 Minute Timer with Music [ELECTRIC] ⚡"
+    },
+    "https://www.youtube.com/watch?v=88sARuFu-tc": {
+      "played": 2,
+      "skipped": 0,
+      "requestedBy": {
+        "unknown": 1,
+        "835680025087967233": 1
+      },
+      "title": "Bronski Beat - Smalltown Boy (Official Video)"
+    },
+    "https://www.youtube.com/watch?v=_BuWIkyv8KQ": {
+      "played": 1,
+      "skipped": 0,
+      "requestedBy": {
+        "835680025087967233": 1
+      },
+      "title": "Nothing But Thieves :: Oh No :: He Said What? Live From Ziggo Dome (Official Video)"
+    },
+    "https://www.youtube.com/watch?v=WWloIAQpMcQ": {
+      "played": 0,
+      "skipped": 1,
+      "requestedBy": {},
+      "title": "How to cope with anxiety | Olivia Remes | TEDxUHasselt"
+    }
+  },
   "playlists": {},
-  "sources": {},
+  "sources": {
+    "youtube": 4
+  },
   "totalListeningMinutes": {
-    "global": 0,
-    "perUser": {}
+    "global": 14.685683333333333,
+    "perUser": {
+      "835680025087967233": 9.621016666666666,
+      "unknown": 5.064666666666667
+    }
   },
   "totalSongsRequested": {
     "global": 0,

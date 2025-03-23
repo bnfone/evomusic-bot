@@ -87,26 +87,20 @@ export default {
 
     // Create the Song object and perform the blacklist check
     let song: Song;
-    try {
-      if (i18n.getLocale() === "de" && argSongName === "") {
-        // Beispiel: Sonderbehandlung, falls nötig
-      }
-      if (bot.client && i18n) {
-        // Debug log
-        console.log(`[Playnext] Creating song object from URL: ${songUrl}`);
-      }
-      song = await Song.from(songUrl!, argSongName);
-      // Check if the song is blacklisted
-      if (isSongBlacklisted(song.url)) {
-        await interaction.editReply({ content: "This song is blacklisted and cannot be played." });
-        return;
-      }
-    } catch (error: any) {
-      console.error("[Playnext] Error creating song object:", error);
-      return interaction
-        .editReply({ content: i18n.__("common.errorCommand") })
-        .catch(console.error);
-    }
+try {
+  song = await Song.from(songUrl, argSongName);
+  // Set the requesterId for statistics logging
+  (song as any).requesterId = interaction.user.id;
+  if (isSongBlacklisted(song.url)) {
+    await interaction.editReply({ content: "This song is blacklisted and cannot be played." });
+    return;
+  }
+} catch (error: any) {
+  console.error("[Playnext] Fehler beim Erstellen des Songs:", error);
+  return interaction
+    .editReply({ content: i18n.__("common.errorCommand") })
+    .catch(console.error);
+}
 
     // If a queue already exists, insert the song right after the currently playing song
     if (queue) {
