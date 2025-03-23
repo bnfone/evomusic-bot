@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./.github/_imgages/evomusic.png" height="90px" />
+  <img src="/.github/_imgages/evomusic.png" height="90px" />
 </p>
 
 <h1 align="center"> EvoMusic - A Discord Music Bot</h1>
