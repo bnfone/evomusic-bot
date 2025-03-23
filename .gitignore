@@ -71,3 +71,4 @@ config.json
 
 build-and-start-docker.sh
 cache.json
+data/
