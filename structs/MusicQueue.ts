@@ -51,6 +51,8 @@ export class MusicQueue {
   private queueLock = false;
   private readyLock = false;
   private stopped = false;
+  // New property to record when the current song started playing
+  private currentSongStartTime: number | null = null;
 
   /**
    * Constructs a new MusicQueue instance, setting up the audio player,
@@ -85,7 +87,7 @@ export class MusicQueue {
           newState.reason === VoiceConnectionDisconnectReason.WebSocketClose &&
           newState.closeCode === 4014
         ) {
-          // Beschreibt: Possibly kicked out etc.
+          // Possibly kicked out etc.
           try {
             this.stop();
           } catch (e) {
@@ -93,7 +95,7 @@ export class MusicQueue {
             this.stop();
           }
         } else if (this.connection.rejoinAttempts < 5) {
-          // Warte, dann versuche rejoin
+          // Wait and then try to rejoin
           await wait((this.connection.rejoinAttempts + 1) * 5000);
           this.connection.rejoin();
         } else {
@@ -121,16 +123,30 @@ export class MusicQueue {
 
     // Player state changes
     this.player.on("stateChange", async (oldState: AudioPlayerState, newState: AudioPlayerState) => {
+      // When a song finishes (transition from Playing to Idle)
       if (
-        oldState.status !== AudioPlayerStatus.Idle &&
+        oldState.status === AudioPlayerStatus.Playing &&
         newState.status === AudioPlayerStatus.Idle
       ) {
-        // Song ist zu Ende
+        // Statistik-Logging: If currentSongStartTime is set, calculate played time
+        if (this.currentSongStartTime !== null && this.resource) {
+          const currentSong = this.resource.metadata as Song;
+          const playedMs = Date.now() - this.currentSongStartTime;
+          const playedPercentage = playedMs / (currentSong.duration * 1000);
+          const requesterId = (currentSong as any).requesterId || "unknown";
+          if (playedPercentage >= 0.5) {
+            await logSongPlayed(requesterId, currentSong.url, playedMs / 60000, "youtube", currentSong.title);
+          } else {
+            await logSongSkipped(requesterId, currentSong.url, currentSong.title);
+          }
+        }
+        this.currentSongStartTime = null;
+
         if (this.loop && this.songs.length) {
-          // Rotiere das Array
+          // Rotate the array
           this.songs.push(this.songs.shift()!);
         } else {
-          // Next
+          // Next: remove the current song
           this.songs.shift();
           if (!this.songs.length) {
             return this.stop();
@@ -144,6 +160,8 @@ export class MusicQueue {
         oldState.status === AudioPlayerStatus.Buffering &&
         newState.status === AudioPlayerStatus.Playing
       ) {
+        // When buffering ends and the song starts playing, record the start time
+        this.currentSongStartTime = Date.now();
         this.sendPlayingMessage(newState as AudioPlayerPlayingState);
       }
     });
@@ -225,17 +243,17 @@ export class MusicQueue {
     try {
       const resource = await nextSong.makeResource();
       if (!resource) {
-        // Falls resource null/undefined => skip
+        // If resource is null/undefined, skip the song
         this.songs.shift();
         return this.processQueue();
       }
 
       this.resource = resource;
       this.player.play(this.resource);
-
-      // Lautstärke
+      // Set the volume
       this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
-
+      // Record the start time when the song starts playing
+      this.currentSongStartTime = Date.now();
     } catch (error) {
       console.error(`Fehler beim Abspielen des Songs: ${error}`);
       this.songs.shift();

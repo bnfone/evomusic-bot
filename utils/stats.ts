@@ -5,6 +5,7 @@ export interface SongStats {
   played: number;
   skipped: number;
   requestedBy: { [userId: string]: number };
+  title: string; // Neuer Eintrag: Songtitel
 }
 
 export interface PlaylistStats {
@@ -77,10 +78,17 @@ export async function logSongRequested(userId: string, songUrl: string): Promise
  * Logs that a song was played.
  * @param playedMinutes Minutes the song was played (rounded)
  * @param source e.g. "youtube", "spotify"
+ * @param title The title of the song
  */
-export async function logSongPlayed(userId: string, songUrl: string, playedMinutes: number, source: string): Promise<void> {
+export async function logSongPlayed(
+  userId: string,
+  songUrl: string,
+  playedMinutes: number,
+  source: string,
+  title: string
+): Promise<void> {
   if (!stats.songs[songUrl]) {
-    stats.songs[songUrl] = { played: 0, skipped: 0, requestedBy: {} };
+    stats.songs[songUrl] = { played: 0, skipped: 0, requestedBy: {}, title };
   }
   stats.songs[songUrl].played++;
   stats.songs[songUrl].requestedBy[userId] = (stats.songs[songUrl].requestedBy[userId] || 0) + 1;
@@ -95,10 +103,15 @@ export async function logSongPlayed(userId: string, songUrl: string, playedMinut
 
 /**
  * Logs that a song was skipped.
+ * @param title The title of the song
  */
-export async function logSongSkipped(userId: string, songUrl: string): Promise<void> {
+export async function logSongSkipped(
+  userId: string,
+  songUrl: string,
+  title: string
+): Promise<void> {
   if (!stats.songs[songUrl]) {
-    stats.songs[songUrl] = { played: 0, skipped: 0, requestedBy: {} };
+    stats.songs[songUrl] = { played: 0, skipped: 0, requestedBy: {}, title };
   }
   stats.songs[songUrl].skipped++;
   await saveStats();

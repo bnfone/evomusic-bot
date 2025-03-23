@@ -2,7 +2,6 @@ import {
     ChatInputCommandInteraction,
     SlashCommandBuilder,
     PermissionsBitField,
-    User,
     TextChannel
   } from "discord.js";
   import { i18n } from "../utils/i18n";
@@ -13,6 +12,7 @@ import {
     removeFavorite,
     getUserFavorites,
     getGlobalFavorites,
+    getFavoritesData
   } from "../utils/favorites";
   // Import statically from @discordjs/voice
   import { DiscordGatewayAdapterCreator, joinVoiceChannel } from "@discordjs/voice";
@@ -128,14 +128,20 @@ import {
       }
       // Subcommand: list (individual favorites)
       else if (subcommand === "list") {
-        const favs = getUserFavorites(interaction.user.id);
-        if (favs.length === 0) {
+        const favUrls = getUserFavorites(interaction.user.id);
+        if (favUrls.length === 0) {
           return interaction.reply({
             content: "You have no favorite songs.",
             ephemeral: true,
           });
         }
-        const output = favs.map((url, index) => `${index + 1}. ${url}`).join("\n");
+        const favData = getFavoritesData();
+        const output = favUrls
+          .map((url, index) => {
+            const title = favData.global[url] ? favData.global[url].title : url;
+            return `${index + 1}. ${title} (<${url}>)`;
+          })
+          .join("\n");
         return interaction.reply({
           content: `Your favorite songs:\n${output}`,
           ephemeral: true,

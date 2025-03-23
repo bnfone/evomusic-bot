@@ -113,6 +113,8 @@ export default {
       if (config.DEBUG) console.log(`[Play] Erstelle Song-Objekt aus URL: ${songUrl}`);
       // Song-Objekt aus YouTube-Link erstellen
       song = await Song.from(songUrl!, argSongName);
+      // Set the requesterId so statistics log the correct user
+      (song as any).requesterId = interaction.user.id;
       // Check if the song is blacklisted
       if (isSongBlacklisted(song.url)) {
         return interaction.editReply({ content: "This song is blacklisted and cannot be played." });

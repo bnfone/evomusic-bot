@@ -216,10 +216,12 @@ async function processOneSpotifySong(
     }
 
     // 2) Song-Objekt
+    // 2) Song-Objekt
     const song = await Song.from(youtubeUrl);
+    (song as any).requesterId = interaction.user.id; // Set requesterId here
     if (isSongBlacklisted(song.url)) {
       await interaction.editReply({ content: "This song is blacklisted and cannot be played." });
-      return; // Return after sending the reply, ohne den Rückgabewert weiterzugeben.
+      return;
     }
     if (!song) {
       if (config.DEBUG) console.warn("[Playlist] -> Song.from() schlug fehl");
