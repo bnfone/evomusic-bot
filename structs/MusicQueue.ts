@@ -1,3 +1,8 @@
+// /structs/MusicQueue.ts
+// This module manages the music queue, playback and control buttons.
+// Advertisement functionality has been integrated so that after a configured number of normal songs,
+// an advertisement is played (without being displayed in the queue).
+
 import {
   AudioPlayer,
   AudioPlayerPlayingState,
@@ -10,7 +15,8 @@ import {
   VoiceConnection,
   VoiceConnectionDisconnectReason,
   VoiceConnectionState,
-  VoiceConnectionStatus
+  VoiceConnectionStatus,
+  StreamType
 } from "@discordjs/voice";
 import {
   ActionRowBuilder,
@@ -23,6 +29,7 @@ import {
   Message,
   TextChannel
 } from "discord.js";
+import { createReadStream } from "fs";
 import { promisify } from "node:util";
 import { bot } from "../index";
 import { QueueOptions } from "../interfaces/QueueOptions";
@@ -32,6 +39,7 @@ import { canModifyQueue } from "../utils/queue";
 import { Song } from "./Song";
 import { safeReply } from "../utils/safeReply";
 import { logSongPlayed, logSongSkipped } from "../utils/stats";
+import { getRandomAdFile, sendAdvertisementEmbed } from "../utils/advertisements";
 
 const wait = promisify(setTimeout);
 
@@ -51,8 +59,10 @@ export class MusicQueue {
   private queueLock = false;
   private readyLock = false;
   private stopped = false;
-  // New property to record when the current song started playing
+  // Record the start time for the currently playing song
   private currentSongStartTime: number | null = null;
+  // Counter for the number of normal songs played since last advertisement
+  private advertisementCounter: number = 0;
 
   /**
    * Constructs a new MusicQueue instance, setting up the audio player,
@@ -128,32 +138,46 @@ export class MusicQueue {
         oldState.status === AudioPlayerStatus.Playing &&
         newState.status === AudioPlayerStatus.Idle
       ) {
-        // Statistik-Logging: If currentSongStartTime is set, calculate played time
-        if (this.currentSongStartTime !== null && this.resource) {
-          const currentSong = this.resource.metadata as Song;
-          const playedMs = Date.now() - this.currentSongStartTime;
-          const playedPercentage = playedMs / (currentSong.duration * 1000);
-          const requesterId = (currentSong as any).requesterId || "unknown";
-          if (playedPercentage >= 0.5) {
-            await logSongPlayed(requesterId, currentSong.url, playedMs / 60000, "youtube", currentSong.title);
-          } else {
-            await logSongSkipped(requesterId, currentSong.url, currentSong.title);
+        const currentMetadata = this.resource ? this.resource.metadata : null;
+        const isAd = currentMetadata && (currentMetadata as Song).title === "Advertisement";
+
+        // If it's a normal song, log and increment the advertisement counter
+        if (!isAd && this.resource) {
+          if (this.currentSongStartTime !== null) {
+            const currentSong = this.resource.metadata as Song;
+            const playedMs = Date.now() - this.currentSongStartTime;
+            const playedPercentage = playedMs / (currentSong.duration * 1000);
+            const requesterId = (currentSong as any).requesterId || "unknown";
+            if (playedPercentage >= 0.5) {
+              await logSongPlayed(requesterId, currentSong.url, playedMs / 60000, "youtube", currentSong.title);
+            } else {
+              await logSongSkipped(requesterId, currentSong.url, currentSong.title);
+            }
           }
+          this.advertisementCounter++;
         }
         this.currentSongStartTime = null;
 
-        if (this.loop && this.songs.length) {
-          // Rotate the array
-          this.songs.push(this.songs.shift()!);
-        } else {
-          // Next: remove the current song
-          this.songs.shift();
-          if (!this.songs.length) {
-            return this.stop();
+        // For normal songs, remove the played song from the queue
+        if (!isAd) {
+          if (this.loop && this.songs.length) {
+            this.songs.push(this.songs.shift()!);
+          } else {
+            this.songs.shift();
+            if (!this.songs.length) {
+              return this.stop();
+            }
           }
         }
+        // If it's a normal song and advertisement interval is reached, play ad
+        if (!isAd && config.ADVERTISEMENT_INTERVAL && this.advertisementCounter >= config.ADVERTISEMENT_INTERVAL) {
+          this.advertisementCounter = 0;
+          await this.playAdvertisement();
+          return; // playAdvertisement() will resume playback via state change events
+        }
 
-        if (this.songs.length || this.resource?.audioPlayer) {
+        // Resume processing the queue regardless if an ad just finished or a normal song ended
+        if (this.songs.length) {
           this.processQueue();
         }
       } else if (
@@ -162,7 +186,10 @@ export class MusicQueue {
       ) {
         // When buffering ends and the song starts playing, record the start time
         this.currentSongStartTime = Date.now();
-        this.sendPlayingMessage(newState as AudioPlayerPlayingState);
+        // Only send playing message if the current resource has a startMessage function
+        if (this.resource && typeof (this.resource.metadata as any).startMessage === "function") {
+          this.sendPlayingMessage(newState as AudioPlayerPlayingState);
+        }
       }
     });
 
@@ -255,13 +282,13 @@ export class MusicQueue {
       // Record the start time when the song starts playing
       this.currentSongStartTime = Date.now();
     } catch (error) {
-      console.error(`Fehler beim Abspielen des Songs: ${error}`);
+      console.error(`Error playing song: ${error}`);
       this.songs.shift();
 
       if (this.textChannel) {
         this.textChannel
           .send(
-            `Ein Fehler ist aufgetreten beim Abspielen des Songs **${nextSong.title}** und er wurde übersprungen.`
+            `An error occurred while playing the song **${nextSong.title}** and it was skipped.`
           )
           .catch(console.error);
       }
@@ -269,6 +296,46 @@ export class MusicQueue {
       this.queueLock = false;
       if (this.songs.length) this.processQueue();
     }
+  }
+
+  /**
+   * Plays an advertisement. This method is called when the advertisement counter
+   * reaches the configured interval. It does not add the advertisement to the queue.
+   */
+  private async playAdvertisement(): Promise<void> {
+    if (config.DEBUG) console.log("[MusicQueue] Advertisement interval reached. Playing advertisement...");
+    const adFilePath = await getRandomAdFile();
+    if (!adFilePath) {
+      if (config.DEBUG) console.log("[MusicQueue] No advertisement file available. Skipping ad.");
+      // Continue with the queue if no ad file found
+      return this.processQueue();
+    }
+
+    // Send advertisement embed to the text channel
+    await sendAdvertisementEmbed(this.textChannel);
+
+    try {
+      // Create a read stream for the advertisement file
+      const adStream = createReadStream(adFilePath);
+      // Create an audio resource from the advertisement stream.
+      // Note: The advertisement metadata is a plain object without startMessage.
+      const { createAudioResource } = await import("@discordjs/voice");
+      const adResource = createAudioResource(adStream, {
+        inputType: StreamType.Arbitrary,
+        inlineVolume: true,
+        metadata: { title: "Advertisement" }
+      });
+      // Play the advertisement resource
+      this.resource = adResource;
+      this.player.play(this.resource);
+      // Set the volume for the ad (optional)
+      this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
+      // Record the start time (not used for stats on ads)
+      this.currentSongStartTime = Date.now();
+    } catch (error) {
+      console.error("[MusicQueue] Error playing advertisement:", error);
+    }
+    // When the advertisement finishes, the state change event will trigger processQueue()
   }
 
   /**
@@ -379,10 +446,17 @@ export class MusicQueue {
 
   /**
    * Sends a message indicating which song is playing, including player controls
-   * as interactive buttons. The message is deleted or buttons removed after end of track.
+   * as interactive buttons. If the current resource does not implement startMessage (e.g. advertisement),
+   * the function will simply return without sending a message.
    */
   private async sendPlayingMessage(newState: AudioPlayerPlayingState) {
-    const song = (newState.resource as AudioResource<Song>).metadata;
+    const metadata = newState.resource.metadata;
+    // Check if the metadata has a startMessage function (normal Song)
+    if (typeof (metadata as any).startMessage !== "function") {
+      // Likely an advertisement; do not send a playing message.
+      return;
+    }
+    const song = metadata as Song;
 
     let playingMessage: Message;
 
@@ -409,7 +483,7 @@ export class MusicQueue {
 
       const handler = this.commandHandlers.get(interaction.customId);
 
-      // skip/stop => collector end
+      // For skip/stop, end the collector
       if (["skip", "stop"].includes(interaction.customId)) collector.stop();
 
       if (handler) await handler.call(this, interaction);
@@ -418,7 +492,7 @@ export class MusicQueue {
     collector.on("end", () => {
       playingMessage.edit({ components: [] }).catch(console.error);
 
-      // ggf. auto-delete
+      // Auto-delete if pruning is enabled
       if (config.PRUNING) {
         setTimeout(() => {
           playingMessage.delete().catch();
