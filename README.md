@@ -8,16 +8,6 @@
 
 [![Publish Docker Image](https://github.com/bnfone/discord-bot-evomusic/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/bnfone/discord-bot-evomusic/actions/workflows/publish-docker.yml)
 
-> [!NOTE] 
-> **🎵 Disclaimer & Support Notice**
->
-> This bot downloads music from YouTube, which means the artists, record labels, and rights holders don’t earn anything from the music played here. We truly encourage you to show your love for the musicians—whether by buying their music, streaming on licensed platforms, or following them on social media. Independent artists rely on your support, especially in an industry where every bit of help counts!
-> 
-> Please keep in mind:
-> - **YouTube Terms of Service**: Downloading and using YouTube content in this way might go against YouTube’s rules. This project is meant only for learning and non-commercial purposes. We do not promote copyright infringement—it’s your responsibility to make sure your use of this bot stays within YouTube’s policies.
-> - **Copyright & GEMA**: The music you access through this bot isn’t covered by any licensing or royalty payments (such as those collected by GEMA or similar organizations). If you’re in a region where these rules apply, you need to make sure you have the proper licenses if you plan to use the music publicly or commercially. The developer isn’t liable for any legal issues that might arise from using this bot.
-> 
-> By using this bot, you confirm that you understand these points and agree to support artists through proper channels.
 
 ## 🌟 Quickstart & Support
 
@@ -87,8 +77,6 @@ docker run -e TOKEN=your_discord_bot_token -e SPOTIFY_CLIENT_ID=your_spotify_cli
 **Docker Compose**
 
 ```yml
-version: '3.8'
-
 services:
   discord_music_bot:
     image: ghcr.io/bnfone/discord-bot-evomusic:latest
@@ -128,6 +116,18 @@ This fork supports additional locales. For a complete list, please refer to the 
 3. Commit your changes: `cz` OR `npm run commit` (Avoid using `git commit` directly)
 4. Push to the branch: `git push origin my-new-feature`
 5. Submit a pull request to the original repository and mention that it's for the forked version.
+
+
+> [!NOTE] 
+> **🎵 Disclaimer & Support Notice**
+>
+> This bot downloads music from YouTube, which means the artists, record labels, and rights holders don’t earn anything from the music played here. We truly encourage you to show your love for the musicians—whether by buying their music, streaming on licensed platforms, or following them on social media. Independent artists rely on your support, especially in an industry where every bit of help counts!
+> 
+> Please keep in mind:
+> - **YouTube Terms of Service**: Downloading and using YouTube content in this way might go against YouTube’s rules. This project is meant only for learning and non-commercial purposes. We do not promote copyright infringement—it’s your responsibility to make sure your use of this bot stays within YouTube’s policies.
+> - **Copyright & GEMA**: The music you access through this bot isn’t covered by any licensing or royalty payments (such as those collected by GEMA or similar organizations). If you’re in a region where these rules apply, you need to make sure you have the proper licenses if you plan to use the music publicly or commercially. The developer isn’t liable for any legal issues that might arise from using this bot.
+> 
+> **By using this bot, you confirm that you understand these points and agree to support artists through proper channels.**
 
 --- 
 **Note:** This fork is maintained separately from the original  [EvoBot](https://github.com/eritislami/evobot). For changes specific to this fork, ensure to target the correct repository when submitting pull requests or issues.

@@ -42,11 +42,13 @@ export async function getRandomAdFile(): Promise<string | null> {
 export async function sendAdvertisementEmbed(textChannel: TextChannel): Promise<void> {
   try {
     const embed = new EmbedBuilder()
-      .setTitle("Help the bot keep alive")
+      .setTitle("🎶 Enjoying the vibes?")
       .setDescription(
-        "This bot is open source on GitHub! If you like the vibes, drop a star on the repo — it helps a lot.\n" +
-        "Wanna support the project even more? Type `/donate` to help cover server costs. Building and running this thing takes time and money, so every bit means the world.\n" +
-        "Thanks for being awesome!"
+        "This bot is fully open source and made with way too much love (and caffeine).\n" +
+        "👉 Drop a ⭐ on the GitHub repo to support it!\n" +
+        "💸 Feeling generous? Donations help with updates & server costs!\n" +
+        "Every click fuels the music… and prevents one developer meltdown 😌❤️\n" +
+        "-# [Buttons below – go off, king/queen/legend ✨]\n"
       )
       .setColor("#F8AA2A")
       .setTimestamp();
