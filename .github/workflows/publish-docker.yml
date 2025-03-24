@@ -25,16 +25,14 @@ jobs:
       - name: Set up Docker tags
         id: vars
         run: |
-          # If the event is a release, tag the image with the release tag and 'latest'.
+          REPO_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
           if [ "${{ github.event_name }}" == "release" ]; then
-            echo "TAGS=ghcr.io/${{ github.repository_owner }}/${{ github.repository.name }}:${{ github.event.release.tag_name }},ghcr.io/${{ github.repository_owner }}/${{ github.repository.name }}:latest" >> $GITHUB_ENV
-          # If the push is on the development branch, tag with a short commit hash and 'development'.
+            echo "TAGS=ghcr.io/${{ github.repository_owner }}/${REPO_NAME}:${{ github.event.release.tag_name }},ghcr.io/${{ github.repository_owner }}/${REPO_NAME}:latest" >> $GITHUB_ENV
           elif [ "${{ github.ref }}" == "refs/heads/development" ]; then
             COMMIT_HASH=${GITHUB_SHA:0:7}
-            echo "TAGS=ghcr.io/${{ github.repository_owner }}/${{ github.repository.name }}:development-${COMMIT_HASH},ghcr.io/${{ github.repository_owner }}/${{ github.repository.name }}:development" >> $GITHUB_ENV
-          # If the push is on the master branch, tag the image as 'latest'.
+            echo "TAGS=ghcr.io/${{ github.repository_owner }}/${REPO_NAME}:development-${COMMIT_HASH},ghcr.io/${{ github.repository_owner }}/${REPO_NAME}:development" >> $GITHUB_ENV
           elif [ "${{ github.ref }}" == "refs/heads/master" ]; then
-            echo "TAGS=ghcr.io/${{ github.repository_owner }}/${{ github.repository.name }}:latest" >> $GITHUB_ENV
+            echo "TAGS=ghcr.io/${{ github.repository_owner }}/${REPO_NAME}:latest" >> $GITHUB_ENV
           fi
 
       # Step 3: Log in to the GitHub Container Registry (GHCR).
