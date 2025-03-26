@@ -7,7 +7,8 @@ import {
   Interaction,
   REST,
   Routes,
-  Snowflake
+  Snowflake,
+  ActivityType
 } from "discord.js";
 import { readdirSync } from "fs";
 import { join } from "path";
@@ -17,12 +18,12 @@ import { config } from "../utils/config";
 import { i18n } from "../utils/i18n";
 import { MissingPermissionsException } from "../utils/MissingPermissionsException";
 import { MusicQueue } from "./MusicQueue";
-import { ActivityType } from "discord.js";
-// Import the blacklist and logging functions
+// Import blacklist functions and unified logger (including logCommandUsage)
 import { isUserBlacklisted, loadBlacklist } from "../utils/blacklist";
-import { logCommandUsage } from "../utils/dataStore";
 import { loadFavorites } from "../utils/favorites";
 import { loadStats } from "../utils/stats";
+import { handleError } from "../utils/errorHandler";
+import { logCommandUsage } from "../utils/logger";
 
 export class Bot {
   public readonly prefix = "/";
@@ -38,19 +39,19 @@ export class Bot {
 
     this.client.on("ready", async () => {
       console.log(`${this.client.user!.username} ready!`);
-    
+
       // Set the bot's presence
       this.client.user!.setPresence({
         activities: [{ name: 'Spotify & Apple Music', type: ActivityType.Listening }],
         status: 'online'
       });
-    
-      // Load persistent data (blacklist, favorites, etc.) before registering commands
+
+      // Load persistent data (blacklist, favorites, stats, etc.) before registering commands
       await loadBlacklist().catch(console.error);
       await loadFavorites().catch(console.error);
       await loadStats().catch(console.error);
-    
-      this.registerSlashCommands();
+
+      this.registerSlashCommands().catch(console.error);
     });
 
     this.client.on("warn", (info) => console.log(info));
@@ -68,7 +69,6 @@ export class Bot {
 
     for (const file of commandFiles) {
       const command = await import(join(__dirname, "..", "commands", `${file}`));
-
       this.slashCommands.push(command.default.data);
       this.slashCommandsMap.set(command.default.data.name, command.default);
     }
@@ -88,13 +88,14 @@ export class Bot {
       // Global blacklist check: if user is blacklisted, do not execute command
       if (isUserBlacklisted(interaction.user.id)) {
         return interaction.reply({
-          content: "You are blacklisted and cannot execute this command.",
+          content: i18n.__("common.userBlacklisted"),
           ephemeral: true
         });
       }
 
       // Log the command usage globally for unified statistics
-      logCommandUsage(interaction.user.id, interaction.commandName);
+      // Here, we log the command name and optionally parameters if needed
+      logCommandUsage(interaction.user.id, interaction.commandName, interaction.options.data);
 
       // Setup cooldowns per command
       if (!this.cooldowns.has(interaction.commandName)) {
@@ -127,17 +128,13 @@ export class Bot {
         // Check if the user has the necessary permissions to execute the command
         const permissionsCheck: PermissionResult = await checkPermissions(command, interaction);
         if (permissionsCheck.result) {
-          command.execute(interaction as ChatInputCommandInteraction);
+          await command.execute(interaction as ChatInputCommandInteraction);
         } else {
           throw new MissingPermissionsException(permissionsCheck.missing);
         }
       } catch (error: any) {
-        console.error(error);
-        if (error.message.includes("permissions")) {
-          interaction.reply({ content: error.toString(), ephemeral: true }).catch(console.error);
-        } else {
-          interaction.reply({ content: i18n.__("common.errorCommand"), ephemeral: true }).catch(console.error);
-        }
+        // Use unified error handler to log and notify the user
+        await handleError(interaction as ChatInputCommandInteraction, error);
       }
     });
   }

@@ -23,6 +23,7 @@ import {
 } from "../utils/patterns";
 import { convertToYouTubeLink } from "../utils/platformUtils";
 import { isSongBlacklisted } from "../utils/blacklist";
+import { handleError } from "../utils/errorHandler";
 
 export default {
   data: new SlashCommandBuilder()
@@ -31,7 +32,7 @@ export default {
     .addStringOption((option) =>
       option
         .setName("song")
-        .setDescription(i18n.__("play.optionSong")) // Lokalisierte Beschreibung
+        .setDescription(i18n.__("play.optionSong"))
         .setRequired(true)
     ),
   cooldown: 3,
@@ -40,6 +41,7 @@ export default {
   async execute(interaction: ChatInputCommandInteraction) {
     let argSongName = interaction.options.getString("song")!;
 
+    // Get the member who invoked the command and check their voice channel
     const guildMember = interaction.guild!.members.cache.get(interaction.user.id);
     const { channel } = guildMember!.voice;
 
@@ -49,7 +51,7 @@ export default {
         .catch(console.error);
     }
 
-    // Prüfe, ob schon eine Queue existiert und ob der User im gleichen Kanal ist
+    // Check if a queue already exists and if the user is in the same voice channel as the bot
     const queue = bot.queues.get(interaction.guild!.id);
     if (queue && channel.id !== queue.connection.joinConfig.channelId) {
       return interaction
@@ -71,67 +73,61 @@ export default {
         .catch(console.error);
     }
 
+    // Send a loading message to the user
     if (interaction.replied) {
       await interaction.editReply(i18n.__("common.loading")).catch(console.error);
     } else {
       await interaction.reply(i18n.__("common.loading"));
     }
 
-    if (config.DEBUG) console.log(`[Play] Verarbeite Song-Name oder Link: ${argSongName}`);
+    if (config.DEBUG) console.log(`[Play] Processing song name or link: ${argSongName}`);
 
-    // 1) Ist es eine Playlist?
+    // 1) Check if the input is a playlist URL
     if (playlistPattern.test(argSongName)) {
-      if (config.DEBUG) console.log("[Play] Playlist erkannt. Weiterleitung an /playlist Command.");
+      if (config.DEBUG) console.log("[Play] Playlist recognized. Redirecting to /playlist command.");
       await interaction.editReply(i18n.__("play.fetchingPlaylist")).catch(console.error);
-      // Leite weiter zum /playlist Command
+      // Redirect to the /playlist command
       return bot.slashCommandsMap.get("playlist")!.execute(interaction);
     }
 
-    // 2) Einzelner Link (AppleMusic oder Spotify) => YouTube-Link konvertieren
+    // 2) For single links (AppleMusic or Spotify), convert to a YouTube link
     let songUrl: string | null = argSongName;
-
     if (appleMusicPattern.test(argSongName) || spotifyPattern.test(argSongName)) {
       const platform = appleMusicPattern.test(argSongName) ? "appleMusic" : "spotify";
 
       try {
-        if (config.DEBUG) console.log(`[Play] Erkannt als ${platform}-Link. Konvertiere zu YouTube-Link.`);
-        // Konvertiere zu YouTube-Link via platformUtils
+        if (config.DEBUG) console.log(`[Play] Recognized as ${platform} link. Converting to YouTube link.`);
         songUrl = await convertToYouTubeLink(argSongName);
         if (!songUrl) {
           throw new Error(i18n.__("play.errorNoResults"));
         }
       } catch (error) {
-        console.error(`Fehler bei der Konvertierung von ${platform}-Link:`, error);
-        return interaction
-          .editReply({ content: i18n.__("play.errorNoResults") })
-          .catch(console.error);
+        console.error(`Error converting ${platform} link:`, error);
+        // Use unified error handler for conversion errors
+        return handleError(interaction, error as Error);
       }
     }
 
     let song: Song;
     try {
-      if (config.DEBUG) console.log(`[Play] Erstelle Song-Objekt aus URL: ${songUrl}`);
-      // Song-Objekt aus YouTube-Link erstellen
+      if (config.DEBUG) console.log(`[Play] Creating song object from URL: ${songUrl}`);
+      // Create a Song object from the YouTube link
       song = await Song.from(songUrl!, argSongName);
-      // Set the requesterId so statistics log the correct user
+      // Set the requesterId for accurate statistics logging
       (song as any).requesterId = interaction.user.id;
       // Check if the song is blacklisted
       if (isSongBlacklisted(song.url)) {
-        return interaction.editReply({ content: "This song is blacklisted and cannot be played." });
+        return interaction.editReply({ content: i18n.__("play.errorSongBlacklisted") });
       }
-    } catch (error: any) {
-      console.error("Fehler beim Erstellen des Songs:", error);
-      return interaction
-        .editReply({ content: i18n.__("common.errorCommand") })
-        .catch(console.error);
+    } catch (error) {
+      console.error("Error creating song object:", error);
+      return handleError(interaction, error as Error);
     }
 
-    // 3) Queue befüllen
+    // 3) Populate the queue
     if (queue) {
       queue.enqueue(song);
-
-      // Informiere den Channel, dass der Song zur Warteschlange hinzugefügt wurde
-      if (config.DEBUG) console.log(`[Play] Füge Song zur bestehenden Queue hinzu: ${song.title}`);
+      if (config.DEBUG) console.log(`[Play] Adding song to existing queue: ${song.title}`);
       return (interaction.channel as TextChannel)
         .send({
           content: i18n.__mf("play.queueAdded", {
@@ -142,9 +138,8 @@ export default {
         .catch(console.error);
     }
 
-    // Noch keine Queue => Neue erstellen
-    if (config.DEBUG) console.log("[Play] Erstelle neue MusicQueue.");
-
+    // No existing queue: Create a new MusicQueue
+    if (config.DEBUG) console.log("[Play] Creating new MusicQueue.");
     const newQueue = new MusicQueue({
       interaction,
       textChannel: interaction.channel! as TextChannel,
@@ -154,12 +149,10 @@ export default {
         adapterCreator: channel.guild.voiceAdapterCreator as DiscordGatewayAdapterCreator
       })
     });
-
     bot.queues.set(interaction.guild!.id, newQueue);
     newQueue.enqueue(song);
 
-    // "Loading"-Nachricht löschen
-    if (config.DEBUG) console.log("[Play] Starte Wiedergabe der Queue.");
+    if (config.DEBUG) console.log("[Play] Starting queue playback.");
     interaction.deleteReply().catch(console.error);
   }
 };
