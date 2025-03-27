@@ -31,6 +31,7 @@ For a **live demo** (please note: uptime is not 100%!), check out my [Discord Se
 - ⚙️ **Clear Configuration Options:** Easily customize settings such as maximum playlist size, default volume, and more.
 - 🌐 **Updated Discord Intents:** Uses only the necessary intents (Guilds, GuildMembers, GuildVoiceStates, GuildMessages, GuildMessageReactions, MessageContent, and DirectMessages) to match its functionality.
 - 💾 **Flexible Deployment:** Start the bot using npm or Docker with straightforward startup instructions.
+- 🔄 **Piped API Fallback**: If the primary YouTube stream retrieval fails (using ytdl‑core), the bot can now automatically fall back to a Piped API instance—if enabled in your configuration—to ensure continuous playback without consuming disk space.
 - 🥲 **Integrated Issue Reporting:** Submit feature requests and bug reports via our GitHub issue templates.
 
 
@@ -78,6 +79,8 @@ Open `config.json` and update the following fields (or `.env` / `docker-compose.
 - `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`: Your Spotify credentials.
 - `MAX_PLAYLIST_SIZE`, `PRUNING`, `STAY_TIME`, `DEFAULT_VOLUME`, and `LOCALE`: Adjust these settings as desired.
 - `DEBUG` and `ADVERTISEMENT_INTERVAL` can be set to control debugging output and advertisement playback frequency.
+- `pipedApiUrl`: Set this to the base URL of your chosen Piped API instance (e.g., "https://pipedapi.example.com").
+- `usePipedFallback`: Set this to true to enable fallback to the Piped API for stream retrieval if the primary method fails.
 
 ⚠️ **Note**: Never commit or share your token or api keys publicly
 
@@ -98,7 +101,9 @@ docker run -d \
   --env STAY_TIME=30 \
   --env DEFAULT_VOLUME=100 \
   --env LOCALE=en \
-  evomusic
+  --env PIPED_API_URL=https://pipedapi.example.com \
+  --env USE_PIPED_FALLBACK=true \
+  ghcr.io/bnfone/discord-bot-evomusic:latest
 ```
 
 Alternatively, use the provided docker-compose.yml for a simplified setup.
@@ -119,6 +124,8 @@ services:
       - STAY_TIME=30
       - DEFAULT_VOLUME=100
       - LOCALE=en
+      - PIPED_API_URL=https://pipedapi.example.com
+      - USE_PIPED_FALLBACK=true
     restart: always
 ```
 

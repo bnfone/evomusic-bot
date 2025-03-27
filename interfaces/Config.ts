@@ -11,4 +11,6 @@ export interface Config {
   ADVERTISEMENT_INTERVAL?: number;
   LOG_TERMINAL?: boolean;   // New property to control terminal logging
   LOG_COMMANDS?: boolean;   // New property to control command logging
+  pipedApiUrl?: string;
+  usePipedFallback?: boolean;
 }

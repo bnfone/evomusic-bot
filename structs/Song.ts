@@ -2,6 +2,9 @@ import { AudioResource, createAudioResource, StreamType } from "@discordjs/voice
 import youtube from "youtube-sr";
 import { i18n } from "../utils/i18n";
 import { videoPattern, isURL } from "../utils/patterns";
+import { config } from "../utils/config";
+import { extractYoutubeVideoId, fetchPipedAudioStream } from "../utils/piped";
+import { Readable } from "stream";
 
 const ytdl = require('@distube/ytdl-core');
 
@@ -30,7 +33,7 @@ export class Song {
     if (isYoutubeUrl) {
       try {
         songInfo = await ytdl.getBasicInfo(url);
-        //console.log("YouTube Link:", url); // Nur den YouTube-Link anzeigen
+        // Only log the YouTube link
       } catch (error) {
         console.error("Fehler beim Abrufen der Song-Info:", error);
         throw error;
@@ -53,7 +56,7 @@ export class Song {
 
       try {
         songInfo = await ytdl.getBasicInfo(`https://youtube.com/watch?v=${result.id}`);
-        //console.log("YouTube Link:", `https://youtube.com/watch?v=${result.id}`); // Nur den YouTube-Link anzeigen
+        // Only log the YouTube link
       } catch (error) {
         console.error("Fehler beim Abrufen der Song-Info (Suche):", error);
         throw error;
@@ -75,19 +78,41 @@ export class Song {
       return;
     }
 
-    try {
-      if (this.url.includes("youtube")) {
-        playStream = await ytdl(this.url, {
-          filter: 'audioonly',
-          quality: 'highestaudio',
-          highWaterMark: 1 << 25 // Erhöhen der Puffergröße
+    if (this.url.includes("youtube")) {
+      try {
+        // Wrap the ytdl-core call in a Promise to catch early stream errors
+        playStream = await new Promise((resolve, reject) => {
+          const stream = ytdl(this.url, {
+            filter: 'audioonly',
+            quality: 'highestaudio',
+            highWaterMark: 1 << 25 // Increase buffer size
+          });
+          stream.once("error", reject);
+          stream.once("response", () => resolve(stream));
         });
-      } else {
-        // Handhabung für andere Quellen falls benötigt
+      } catch (primaryError) {
+        console.error("Fehler beim Abrufen des Streams mit ytdl-core:", primaryError);
+        // Attempt fallback only if enabled in config
+        if (config.usePipedFallback && config.pipedApiUrl) {
+          const videoId = extractYoutubeVideoId(this.url);
+          if (videoId) {
+            try {
+              console.log("Attempting Piped API fallback for video ID:", videoId);
+              playStream = await fetchPipedAudioStream(videoId, config.pipedApiUrl);
+            } catch (fallbackError) {
+              console.error("Fehler beim Abrufen des Streams via Piped API:", fallbackError);
+              return;
+            }
+          } else {
+            console.error("Konnte Video-ID aus URL nicht extrahieren:", this.url);
+            return;
+          }
+        } else {
+          return;
+        }
       }
-    } catch (error) {
-      console.error("Fehler beim Abrufen des Streams:", error);
-      return;
+    } else {
+      // Handling for other sources if needed
     }
 
     if (!playStream) {
@@ -95,7 +120,12 @@ export class Song {
       return;
     }
 
-    return createAudioResource(playStream, { metadata: this, inputType: StreamType.Arbitrary, inlineVolume: true });
+    // Cast playStream as a Readable stream to satisfy createAudioResource's type requirement
+    return createAudioResource(playStream as Readable, {
+      metadata: this,
+      inputType: StreamType.Arbitrary,
+      inlineVolume: true
+    });
   }
 
   public startMessage() {
