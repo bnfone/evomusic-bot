@@ -23,7 +23,7 @@ import {
   appleMusicPattern,
   spotifyPattern,
 } from "../utils/patterns";
-import { getSpotifyTracks } from "../utils/spotifyUtils";
+import { getSpotifyTracks } from "../utils/spotify";
 import { processAppleMusicPlaylist } from "../utils/appleMusicUtils";
 import { convertToYouTubeLink } from "../utils/platformUtils";
 import { isSongBlacklisted } from "../utils/blacklist";

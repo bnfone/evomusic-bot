@@ -102,7 +102,8 @@
 		"optionShuffle": "Shuffle the playlist",
 		"errorYoutubeGeneric": "An error occurred while fetching the YouTube playlist.",
 		"addedSpotifySongs": "{count} Spotify songs have been added to the queue.",
-		"shuffleEnabled": "Queue has been shuffled."
+		"shuffleEnabled": "Queue has been shuffled.",
+		"errorSpotifyNoSongs": "playlist.errorSpotifyNoSongs"
 	},
 	"pruning": {
 		"description": "Toggle pruning of bot messages",

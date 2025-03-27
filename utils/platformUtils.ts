@@ -1,7 +1,7 @@
 /********************************************
  * utils/platformUtils.ts
  ********************************************/
-import { spotifyTrackToYoutube } from "./spotifyUtils";
+import { spotifyTrackToYoutube } from "./spotify";
 import { appleMusicSongToYoutube } from "./appleMusicUtils";
 import { config } from "./config";
 import { youtubeURLPattern, spotifyPattern, appleMusicPattern } from "./patterns";
