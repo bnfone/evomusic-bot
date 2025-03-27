@@ -79,13 +79,13 @@ export class Bot {
   // Global handler for all incoming slash command interactions
   private async onInteractionCreate() {
     this.client.on(Events.InteractionCreate, async (interaction: Interaction): Promise<any> => {
-      // Only process chat input commands (slash commands)
+      // Nur ChatInputCommands verarbeiten
       if (!interaction.isChatInputCommand()) return;
 
       const command = this.slashCommandsMap.get(interaction.commandName);
       if (!command) return;
 
-      // Global blacklist check: if user is blacklisted, do not execute command
+      // Globaler Blacklist-Check
       if (isUserBlacklisted(interaction.user.id)) {
         return interaction.reply({
           content: i18n.__("common.userBlacklisted"),
@@ -93,20 +93,17 @@ export class Bot {
         });
       }
 
-      // Log the command usage globally for unified statistics
-      // Here, we log the command name and optionally parameters if needed
+      // Logge die Command-Nutzung
       logCommandUsage(interaction.user.id, interaction.commandName, interaction.options.data);
 
-      // Setup cooldowns per command
+      // Cooldown-Setup
       if (!this.cooldowns.has(interaction.commandName)) {
         this.cooldowns.set(interaction.commandName, new Collection());
       }
-
       const now = Date.now();
       const timestamps = this.cooldowns.get(interaction.commandName)!;
       const cooldownAmount = (command.cooldown || 1) * 1000;
       const timestamp = timestamps.get(interaction.user.id);
-
       if (timestamp) {
         const expirationTime = timestamp + cooldownAmount;
         if (now < expirationTime) {
@@ -120,20 +117,19 @@ export class Bot {
           });
         }
       }
-
       timestamps.set(interaction.user.id, now);
       setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
       try {
-        // Check if the user has the necessary permissions to execute the command
+        // Prüfe die nötigen Berechtigungen
         const permissionsCheck: PermissionResult = await checkPermissions(command, interaction);
-        if (permissionsCheck.result) {
-          await command.execute(interaction as ChatInputCommandInteraction);
-        } else {
+        if (!permissionsCheck.result) {
           throw new MissingPermissionsException(permissionsCheck.missing);
         }
+        // Führe den Command aus
+        await command.execute(interaction as ChatInputCommandInteraction);
       } catch (error: any) {
-        // Use unified error handler to log and notify the user
+        // Einheitliche Fehlerbehandlung: Statt direktem console.error wird handleError genutzt
         await handleError(interaction as ChatInputCommandInteraction, error);
       }
     });

@@ -5,6 +5,7 @@ import { videoPattern, isURL } from "../utils/patterns";
 import { config } from "../utils/config";
 import { extractYoutubeVideoId, fetchPipedAudioStream } from "../utils/piped";
 import { Readable } from "stream";
+import { log } from "../utils/logger";
 
 const ytdl = require('@distube/ytdl-core');
 
@@ -97,7 +98,7 @@ export class Song {
           const videoId = extractYoutubeVideoId(this.url);
           if (videoId) {
             try {
-              console.log("Attempting Piped API fallback for video ID:", videoId);
+              log(`Attempting Piped API fallback for video ID: ${videoId}`);
               playStream = await fetchPipedAudioStream(videoId, config.pipedApiUrl);
             } catch (fallbackError) {
               console.error("Fehler beim Abrufen des Streams via Piped API:", fallbackError);
