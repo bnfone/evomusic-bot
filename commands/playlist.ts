@@ -24,7 +24,7 @@ import {
   spotifyPattern,
 } from "../utils/patterns";
 import { getSpotifyTracks } from "../utils/spotify";
-import { processAppleMusicPlaylist } from "../utils/appleMusicUtils";
+import { processAppleMusicPlaylist } from "../utils/applemusic";
 import { convertToYouTubeLink } from "../utils/platformUtils";
 import { isSongBlacklisted } from "../utils/blacklist";
 
