@@ -5,7 +5,7 @@
 // Import necessary modules and configuration
 import axios from "axios";
 import { config } from "./config";
-import { getOdesliLink } from "./odesliUtils";
+import { getOdesliLink } from "./odesli";
 // Use the centralized logger functions from logger.ts
 import { log, error as logError } from "../utils/logger";
 

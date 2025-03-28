@@ -4,7 +4,7 @@
 import { load } from "cheerio";
 import axios from "axios";
 import { config } from "./config";
-import { getOdesliLink } from "./odesliUtils";
+import { getOdesliLink } from "./odesli";
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,

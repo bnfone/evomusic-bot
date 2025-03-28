@@ -13,7 +13,7 @@ import { MusicQueue } from "../structs/MusicQueue";
 import { Song } from "../structs/Song";
 import { i18n } from "../utils/i18n";
 import { playlistPattern } from "../utils/patterns";
-import { convertToYouTubeLink } from "../utils/platformUtils";
+import { convertToYouTubeLink } from "../utils/platform";
 import { isSongBlacklisted } from "../utils/blacklist";
 
 export default {
