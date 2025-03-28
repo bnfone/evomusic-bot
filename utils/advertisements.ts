@@ -61,7 +61,7 @@ export async function sendAdvertisementEmbed(textChannel: TextChannel): Promise<
       new ButtonBuilder()
         .setLabel("Donate")
         .setStyle(ButtonStyle.Link)
-        .setURL("https://bnf.one/donate") // Replace with your donation URL
+        .setURL("https://bnf.one/devdonations") // Replace with your donation URL
     );
 
     await textChannel.send({ embeds: [embed], components: [actionRow] });
