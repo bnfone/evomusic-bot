@@ -129,6 +129,18 @@ services:
     restart: always
 ```
 
+## ☁️ Host EvoMusic on Hetzner Cloud – with €20 Free Credit!
+
+Want to run EvoMusic on your own powerful server?
+Hetzner Cloud offers high-performance virtual machines at a very affordable price—perfect for hosting a music bot like EvoMusic.
+
+By using my affiliate link below, **new customers** will receive **€20 in free cloud credits** to get started:
+
+👉 [Get €20 Hetzner Cloud Credit](https://hetzner.cloud/?ref=bQjCoKHBYVXI)
+
+💡 With just the smallest Hetzner instance (CX11), you can reliably run EvoMusic 24/7—ideal for communities and music lovers alike.
+
+📘 **Tutorial Link _(beginner friendly)_**: (Coming soon – stay tuned!)
 
 ## 😬 Reporting Issues and Feature Requests
 - **Feature Requests**: Please submit feature requests as a GitHub issue via our [feature request template](https://github.com/bnfone/discord-bot-evomusic/issues/new?assignees=&labels=feature&template=---feature-request.md&title=).
