@@ -21,7 +21,7 @@ import {
   appleMusicPattern,
   spotifyPattern
 } from "../utils/patterns";
-import { convertToYouTubeLink } from "../utils/platformUtils";
+import { convertToYouTubeLink } from "../utils/platform";
 import { isSongBlacklisted } from "../utils/blacklist";
 import { handleError } from "../utils/errorHandler";
 
