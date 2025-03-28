@@ -82,7 +82,8 @@
 		"songAccessErr": "Video is age restricted, private, or unavailable.",
 		"errorNoResults": "No results found for {url}.",
 		"errorInvalidURL": "Invalid URL. Please try a search or a YouTube URL.",
-		"startedPlayingRadio": "🎧 Started playing the radio."
+		"startedPlayingRadio": "🎧 Started playing the radio.",
+		"fetchingPlaylist": "play.fetchingPlaylist"
 	},
 	"playlist": {
 		"description": "Play a playlist from Spotify or Apple Music",
