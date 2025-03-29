@@ -141,25 +141,29 @@ export class MusicQueue {
       ) {
         const currentMetadata = this.resource ? this.resource.metadata : null;
         const isAd = currentMetadata && (currentMetadata as Song).title === "Advertisement";
-
-        // For a normal song, log and increment the advertisement counter
+    
+        // For a normal song, log play or skip statistics:
         if (!isAd && this.resource) {
           if (this.currentSongStartTime !== null) {
             const currentSong = this.resource.metadata as Song;
             const playedMs = Date.now() - this.currentSongStartTime;
             const playedPercentage = playedMs / (currentSong.duration * 1000);
             const requesterId = (currentSong as any).requesterId || "unknown";
+            // If more than 50% of the song is played, count it as "played"
             if (playedPercentage >= 0.5) {
               await logSongPlayed(requesterId, currentSong.url, playedMs / 60000, "youtube", currentSong.title);
             } else {
+              // Otherwise, count it as "skipped"
               await logSongSkipped(requesterId, currentSong.url, currentSong.title);
             }
           }
+          // Increase advertisement counter for every normal song played.
           this.advertisementCounter++;
         }
+        // Reset start time.
         this.currentSongStartTime = null;
-
-        // For normal songs, remove the played song from the queue
+    
+        // Remove the song from the queue (looping handled if enabled)
         if (!isAd) {
           if (this.loop && this.songs.length) {
             this.songs.push(this.songs.shift()!);
@@ -170,14 +174,13 @@ export class MusicQueue {
             }
           }
         }
-        // If it's a normal song and the advertisement interval is reached, play an ad
+        // If advertisement interval is reached, play an ad.
         if (!isAd && config.ADVERTISEMENT_INTERVAL && this.advertisementCounter >= config.ADVERTISEMENT_INTERVAL) {
           this.advertisementCounter = 0;
           await this.playAdvertisement();
-          return; // playAdvertisement() will resume playback via state change events
+          return; // playAdvertisement() will resume playback via state change events.
         }
-
-        // Resume processing the queue regardless of whether an ad just finished or a normal song ended
+        // Resume processing the queue.
         if (this.songs.length) {
           this.processQueue();
         }
@@ -185,9 +188,9 @@ export class MusicQueue {
         oldState.status === AudioPlayerStatus.Buffering &&
         newState.status === AudioPlayerStatus.Playing
       ) {
-        // When buffering ends and the song starts playing, record the start time
+        // Record the start time when the song starts playing.
         this.currentSongStartTime = Date.now();
-        // Only send a playing message if the current resource has a startMessage function
+        // Optionally, send a "now playing" message if supported.
         if (this.resource && typeof (this.resource.metadata as any).startMessage === "function") {
           this.sendPlayingMessage(newState as AudioPlayerPlayingState);
         }

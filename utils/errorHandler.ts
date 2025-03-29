@@ -11,7 +11,7 @@ const GITHUB_ISSUE_URL = "https://github.com/bnfone/discord-bot-evomusic/issues/
  * @param interaction - The Discord interaction during which the error occurred.
  * @param err - The error object.
  */
-export async function handleError(interaction: CommandInteraction, err: Error): Promise<void> {
+export async function handleError(interaction: CommandInteraction | null, err: Error): Promise<void> {
   // Log the full error with our logger
   logError("Error in command execution", err);
 
@@ -31,10 +31,14 @@ export async function handleError(interaction: CommandInteraction, err: Error): 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
 
   // Inform the user in Discord (using followUp if already deferred/replied)
-  if (interaction.deferred || interaction.replied) {
-    await interaction.followUp({ embeds: [errorEmbed], components: [row], ephemeral: true });
+  if (interaction) {
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp({ embeds: [errorEmbed], components: [row], ephemeral: true });
+    } else {
+      await interaction.reply({ embeds: [errorEmbed], components: [row], ephemeral: true });
+    }
   } else {
-    await interaction.reply({ embeds: [errorEmbed], components: [row], ephemeral: true });
+    console.error(`Error: ${err.message}. Report this error at: ${GITHUB_ISSUE_URL}`);
   }
 
   // Also output a short error message with the reporting link in the console

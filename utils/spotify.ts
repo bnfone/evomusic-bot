@@ -1,225 +1,238 @@
 /********************************************
  * utils/spotify.ts
+ *
+ * This module provides functions to interact with the Spotify API
+ * for extracting track metadata (track name and primary artist) from a given
+ * Spotify track URL. This metadata is then used to perform a YouTube search (using youtube‑sr)
+ * to find a matching YouTube video that will be used in the Discord music bot queue.
+ *
+ * If metadata extraction fails or is disabled (via config.USE_METADATA_EXTRACTION),
+ * the conversion falls back to using the Odesli API.
+ *
+ * Additionally, a helper function to retrieve Spotify playlist track URLs is included.
+ *
+ * All functions include detailed logging and error handling.
  ********************************************/
 
-// Import necessary modules and configuration
-import axios from "axios";
-import { config } from "./config";
-import { getOdesliLink } from "./odesli";
-// Use the centralized logger functions from logger.ts
-import { log, error as logError } from "../utils/logger";
-
-/**
- * Type definition for the result of parseSpotifyLinkType().
- * It categorizes a Spotify URL as either an album, playlist, track, or unknown.
- */
-interface SpotifyLinkTypeResult {
-  type: "album" | "playlist" | "track" | "unknown";
-  id: string | null;
-}
+import axios, { AxiosResponse } from 'axios';
+import { config } from './config';
+import { log, error as logError } from './logger';
+import { handleError } from './errorHandler';
+import { getOdesliLink } from './odesli';
+import youtube from 'youtube-sr';
+// Import cache functions from the cache module.
+import { CacheEntry, getCacheEntry, updateCacheEntry } from './cache';
 
 /**
  * Retrieves the Spotify Access Token using the Client Credentials Flow.
- * Utilizes centralized logging and error handling.
  *
- * @returns {Promise<string>} The Spotify API access token.
- * @throws Throws an error if the token cannot be retrieved.
+ * This function makes a POST request to Spotify's token endpoint using the
+ * client credentials provided in the configuration.
+ *
+ * @returns A promise that resolves to a Spotify access token as a string.
  */
 export async function getSpotifyAccessToken(): Promise<string> {
-  log("Requesting Spotify Access Token...");
+  log('[Spotify] Requesting Spotify Access Token...');
   try {
     const { data } = await axios.post(
-      "https://accounts.spotify.com/api/token",
-      "grant_type=client_credentials",
+      'https://accounts.spotify.com/api/token',
+      'grant_type=client_credentials',
       {
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+          'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Basic ${Buffer.from(
             `${config.SPOTIFY_CLIENT_ID}:${config.SPOTIFY_CLIENT_SECRET}`
-          ).toString("base64")}`,
+          ).toString('base64')}`,
         },
       }
     );
-    log("Successfully received Spotify Access Token.");
+    log('[Spotify] Successfully received Spotify Access Token.');
     return data.access_token;
   } catch (err) {
-    // Cast error to Error to satisfy TypeScript
-    logError("Error retrieving Spotify Access Token:", err as Error);
+    logError('[Spotify] Error retrieving Spotify Access Token:', err as Error);
     throw err;
   }
 }
 
 /**
- * Parses the provided Spotify URL to determine whether it is an album, playlist, or track.
+ * Parses a Spotify URL to determine its type and extract the relevant ID.
  *
- * Examples:
- *   - https://open.spotify.com/playlist/XYZ?si=...
- *   - https://open.spotify.com/album/XYZ?si=...
- *   - https://open.spotify.com/track/XYZ?si=...
+ * The function supports track, album, and playlist URLs. For track conversion,
+ * only URLs of type "track" with a valid ID are acceptable.
  *
  * @param spotifyUrl - The Spotify URL to parse.
- * @returns {SpotifyLinkTypeResult} An object containing the type and the extracted ID.
+ * @returns An object containing the type ('track', 'album', 'playlist', or 'unknown') and the extracted ID.
  */
-export function parseSpotifyLinkType(spotifyUrl: string): SpotifyLinkTypeResult {
+export function parseSpotifyLinkType(spotifyUrl: string): { type: 'track' | 'album' | 'playlist' | 'unknown'; id: string | null } {
   try {
     const url = new URL(spotifyUrl);
-    // Split the URL's pathname into parts (e.g., ["playlist", "<ID>"])
-    const parts = url.pathname.split("/").filter(Boolean);
-    if (!parts[0] || !parts[1]) {
-      return { type: "unknown", id: null };
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts.length < 2) {
+      return { type: 'unknown', id: null };
     }
     const typeStr = parts[0];
-    const id = parts[1].split("?")[0];
-
-    if (typeStr === "playlist") {
-      return { type: "playlist", id };
-    } else if (typeStr === "album") {
-      return { type: "album", id };
-    } else if (typeStr === "track") {
-      return { type: "track", id };
+    const id = parts[1].split('?')[0];
+    if (typeStr === 'track') {
+      return { type: 'track', id };
+    } else if (typeStr === 'album') {
+      return { type: 'album', id };
+    } else if (typeStr === 'playlist') {
+      return { type: 'playlist', id };
     }
-    return { type: "unknown", id: null };
+    return { type: 'unknown', id: null };
   } catch (err) {
-    return { type: "unknown", id: null };
+    logError('[Spotify] Error parsing Spotify URL:', err as Error);
+    return { type: 'unknown', id: null };
   }
 }
 
 /**
- * Helper function that fetches all tracks from a Spotify playlist using pagination.
+ * Retrieves track metadata (name and primary artist) from Spotify using the track ID.
  *
- * @param playlistId - The Spotify playlist ID.
- * @param accessToken - The access token obtained from Spotify.
- * @returns {Promise<string[]>} An array of Spotify track URLs from the playlist.
+ * This function calls the Spotify API's track endpoint and extracts the track's name
+ * and the name of the first artist (assumed to be the primary artist).
+ *
+ * @param trackId - The Spotify track ID.
+ * @param accessToken - A valid Spotify access token.
+ * @returns An object containing the track name and primary artist.
  */
-async function fetchSpotifyPlaylistTracks(
-  playlistId: string,
-  accessToken: string
-): Promise<string[]> {
-  let tracks: string[] = [];
-  let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
-
-  while (nextUrl) {
-    if (config.DEBUG) {
-      log(`[Spotify] Loading playlist tracks from: ${nextUrl}`);
-    }
-    try {
-      const { data } = await axios.get(nextUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      // Map each item to the Spotify URL of the track.
-      const newTracks = data.items
-        .map((item: any) => item.track?.external_urls?.spotify)
-        .filter(Boolean);
-      tracks.push(...newTracks);
-      nextUrl = data.next; // Continue if there is a next page, otherwise null.
-    } catch (err) {
-      logError("[Spotify] Error fetching playlist tracks:", err as Error);
-      break;
-    }
-  }
-  return tracks;
-}
-
-/**
- * Helper function that fetches all tracks from a Spotify album using pagination.
- *
- * @param albumId - The Spotify album ID.
- * @param accessToken - The access token obtained from Spotify.
- * @returns {Promise<string[]>} An array of Spotify track URLs from the album.
- */
-async function fetchSpotifyAlbumTracks(
-  albumId: string,
-  accessToken: string
-): Promise<string[]> {
-  let tracks: string[] = [];
-  let nextUrl = `https://api.spotify.com/v1/albums/${albumId}/tracks?limit=50`;
-
-  while (nextUrl) {
-    if (config.DEBUG) {
-      log(`[Spotify] Loading album tracks from: ${nextUrl}`);
-    }
-    try {
-      const { data } = await axios.get(nextUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      // Map each track to its Spotify URL.
-      const newTracks = data.items
-        .map((track: any) => track.external_urls?.spotify)
-        .filter(Boolean);
-      tracks.push(...newTracks);
-      nextUrl = data.next;
-    } catch (err) {
-      logError("[Spotify] Error fetching album tracks:", err as Error);
-      break;
-    }
-  }
-  return tracks;
-}
-
-/**
- * Main function that accepts any Spotify URL (playlist or album),
- * fetches all contained song links, and returns an array of Spotify track URLs.
- *
- * For a track URL, it returns an empty array (or can be modified to return [spotifyUrl]).
- *
- * @param spotifyUrl - The Spotify URL to process.
- * @returns {Promise<string[]>} Array of Spotify track URLs.
- */
-export async function getSpotifyTracks(spotifyUrl: string): Promise<string[]> {
-  const accessToken = await getSpotifyAccessToken();
-  const { type, id } = parseSpotifyLinkType(spotifyUrl);
-
-  if (!id) {
-    if (config.DEBUG) {
-      log("[Spotify] No valid ID detected in URL.");
-    }
-    return [];
-  }
-
+export async function getSpotifyTrackData(trackId: string, accessToken: string): Promise<{ trackName: string; artist: string }> {
+  const endpoint = `https://api.spotify.com/v1/tracks/${trackId}`;
+  log(`[Spotify] Fetching track data for ID: ${trackId}`);
   try {
-    if (type === "playlist") {
-      if (config.DEBUG) {
-        log(`[Spotify] Loading playlist with ID: ${id}`);
-      }
-      return await fetchSpotifyPlaylistTracks(id, accessToken);
-    } else if (type === "album") {
-      if (config.DEBUG) {
-        log(`[Spotify] Loading album as a playlist with ID: ${id}`);
-      }
-      return await fetchSpotifyAlbumTracks(id, accessToken);
-    } else if (type === "track") {
-      if (config.DEBUG) {
-        log("[Spotify] URL is a track link. Returning empty array.");
-      }
-      return [];
-    } else {
-      if (config.DEBUG) {
-        log("[Spotify] Unknown link type. Returning empty array.");
-      }
-      return [];
-    }
+    const { data } = await axios.get(endpoint, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const trackName = data.name || 'Unknown';
+    // Assume that the first artist in the array is the primary artist.
+    const artist = (data.artists && data.artists.length > 0 && data.artists[0].name) ? data.artists[0].name : 'Unknown';
+    log(`[Spotify] Retrieved track data - Name: ${trackName}, Artist: ${artist}`);
+    return { trackName, artist };
   } catch (err) {
-    logError("[Spotify] Error fetching tracks:", err as Error);
-    return [];
+    logError(`[Spotify] Error fetching track data from API for ID: ${trackId}`, err as Error);
+    throw err;
   }
 }
 
 /**
- * Converts a Spotify track URL to a YouTube URL using the Odesli API.
- * This function is intended for single tracks.
+ * Converts a Spotify track URL to a YouTube URL using Spotify metadata and YouTube search.
  *
- * @param spotifyUrl - The Spotify track URL.
- * @returns {Promise<string | null>} The corresponding YouTube URL, or null if conversion fails.
+ * The function performs the following steps:
+ * 1. Parses the Spotify URL to extract the track ID.
+ * 2. If metadata extraction is enabled (config.USE_METADATA_EXTRACTION is true):
+ *    a. Retrieves an access token.
+ *    b. Fetches track metadata (track name and artist) via the Spotify API.
+ *    c. Constructs a search query using the track name and artist.
+ *    d. Checks the cache for an existing YouTube URL for the standardized track URL.
+ *    e. Uses youtube-sr to search for the first matching YouTube video if needed.
+ *    f. Updates the cache with the found YouTube URL.
+ *    g. Returns the YouTube URL if found.
+ * 3. If any step fails or if metadata extraction is disabled, it falls back to using Odesli.
+ *
+ * @param spotifyUrl - The Spotify track URL to convert.
+ * @returns A promise that resolves to a YouTube URL string, or null if conversion fails.
  */
 export async function spotifyTrackToYoutube(spotifyUrl: string): Promise<string | null> {
-  if (config.DEBUG) {
-    log(`[Spotify] Converting track to YouTube: ${spotifyUrl}`);
+  log(`[Spotify] Converting Spotify track to YouTube: ${spotifyUrl}`);
+
+  if (config.USE_METADATA_EXTRACTION) {
+    try {
+      // Parse the Spotify URL to ensure it's a track URL and extract the track ID.
+      const { type, id } = parseSpotifyLinkType(spotifyUrl);
+      if (type !== 'track' || !id) {
+        logError(`[Spotify] Provided URL is not a valid track URL: ${spotifyUrl}`);
+        return await getOdesliLink(spotifyUrl);
+      }
+      
+      // Standardize the track URL for caching.
+      const standardizedUrl = `https://open.spotify.com/track/${id}`;
+      
+      // Check if a YouTube URL is already cached for this Spotify track.
+      const cachedEntry = await getCacheEntry(standardizedUrl);
+      if (cachedEntry && cachedEntry.youtubeUrl && cachedEntry.youtubeUrl.trim() !== "") {
+        log(`[Spotify] Cache hit for ${standardizedUrl}: ${cachedEntry.youtubeUrl}`);
+        return cachedEntry.youtubeUrl;
+      }
+      
+      // Retrieve the Spotify access token.
+      const accessToken = await getSpotifyAccessToken();
+      
+      // Fetch track metadata using the Spotify API.
+      const { trackName, artist } = await getSpotifyTrackData(id, accessToken);
+      
+      // Construct a search query using the track name and artist.
+      const searchQuery = `${trackName} ${artist}`;
+      log(`[Spotify] Searching YouTube for query: "${searchQuery}"`);
+
+      // Use youtube-sr to search for the first matching YouTube video.
+      const videoResult = await youtube.searchOne(searchQuery);
+      if (videoResult && videoResult.url) {
+        log(`[Spotify] Found YouTube video: ${videoResult.url}`);
+        // Update the cache with the new YouTube URL.
+        const newCacheEntry: CacheEntry = {
+          platform: 'spotify',
+          songName: trackName,
+          artist: artist,
+          youtubeUrl: videoResult.url,
+          updatedAt: Date.now(),
+        };
+        await updateCacheEntry(standardizedUrl, newCacheEntry);
+        return videoResult.url;
+      } else {
+        logError(`[Spotify] No YouTube video found for query: "${searchQuery}"`);
+        return await getOdesliLink(spotifyUrl);
+      }
+    } catch (err) {
+      logError('[Spotify] Error during metadata extraction and YouTube search. Falling back to Odesli.', err as Error);
+      return await getOdesliLink(spotifyUrl);
+    }
+  } else {
+    log('[Spotify] Metadata extraction disabled. Using Odesli for URL conversion.');
+    return await getOdesliLink(spotifyUrl);
   }
+}
+
+/**
+ * Retrieves Spotify track URLs from a Spotify playlist.
+ *
+ * This helper function:
+ * 1. Parses the playlist URL to extract the playlist ID.
+ * 2. Retrieves a Spotify access token.
+ * 3. Calls the Spotify API endpoint to fetch playlist tracks (handling pagination).
+ * 4. Returns an array of Spotify track URLs.
+ *
+ * @param playlistUrl - The Spotify playlist URL.
+ * @returns An array of Spotify track URLs.
+ */
+export async function getSpotifyPlaylistTracks(playlistUrl: string): Promise<string[]> {
   try {
-    const youtubeUrl = await getOdesliLink(spotifyUrl);
-    return youtubeUrl;
-  } catch (err) {
-    logError("[Spotify] Error converting track to YouTube:", err as Error);
-    return null;
+    const urlObj = new URL(playlistUrl);
+    const parts = urlObj.pathname.split("/").filter(Boolean);
+    if (parts[0] !== "playlist" || !parts[1]) return [];
+    const playlistId = parts[1].split("?")[0];
+
+    const accessToken = await getSpotifyAccessToken();
+    const trackUrls: string[] = [];
+    let nextUrl: string | null = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+
+    while (nextUrl) {
+      // Provide explicit type annotation for the response.
+      const response: AxiosResponse<any> = await axios.get(nextUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      // Extract the data.
+      const data: any = response.data;
+      const newUrls = data.items
+        .map((item: any) => item.track?.external_urls?.spotify)
+        .filter((url: string) => !!url);
+      trackUrls.push(...newUrls);
+      nextUrl = data.next; // This will be null when no further pages exist.
+    }
+    return trackUrls;
+  } catch (error) {
+    logError("[Spotify] Error retrieving Spotify playlist tracks:", error as Error);
+    return [];
   }
 }

@@ -17,8 +17,9 @@ try {
     SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET || "",
     DEBUG: process.env.DEBUG === "true",
     ADVERTISEMENT_INTERVAL: process.env.ADVERTISEMENT_INTERVAL ? parseInt(process.env.ADVERTISEMENT_INTERVAL) : 0,
-    pipedApiUrl: process.env.PIPED_API_URL || "", // e.g., "https://pipedapi.example.com"
-    usePipedFallback: process.env.USE_PIPED_FALLBACK === "true" // set to true if you want to enable the fallback
+    pipedApiUrl: process.env.PIPED_API_URL || "",
+    usePipedFallback: process.env.USE_PIPED_FALLBACK === "false",
+    USE_METADATA_EXTRACTION: process.env.USE_METADATA_EXTRACTION === "true"
   };
 }
 
