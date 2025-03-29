@@ -13,4 +13,5 @@ export interface Config {
   LOG_COMMANDS?: boolean;
   pipedApiUrl?: string;
   usePipedFallback?: boolean;
+  USE_METADATA_EXTRACTION?: boolean;
 }

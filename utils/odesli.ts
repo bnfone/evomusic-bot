@@ -1,56 +1,42 @@
 /********************************************
- * utils/odesliUtils.ts
+ * utils/odesli.ts
+ *
+ * This module provides a function to convert an original URL (e.g., from Apple Music or other platforms)
+ * into a corresponding YouTube URL using the Odesli API as a fallback mechanism.
+ *
+ * The module implements rate-limiting: after a set number of requests, it enforces a cooldown period to
+ * avoid hitting API rate limits.
+ *
+ * It also integrates with the new cache system (utils/cache.ts) to store and retrieve results,
+ * reducing redundant API calls.
+ *
+ * All steps are logged and any errors are handled via the unified error handler.
  ********************************************/
-import axios from "axios";
-import { loadCache, saveCache } from "./cacheUtils";
-import { config } from "./config";
 
-/**
- * Interface für die Odesli API Antwort
- */
-interface OdesliResponse {
-  entityUniqueId: string;
-  userCountry: string;
-  pageUrl: string;
-  linksByPlatform: {
-    [key: string]: {
-      url: string;
-      nativeAppUriMobile?: string;
-      nativeAppUriDesktop?: string;
-      entityUniqueId: string;
-    };
-  };
-}
+import axios from 'axios';
+import { log, error as logError } from './logger';
+import { handleError } from './errorHandler';
+import { getCacheEntry, updateCacheEntry, CacheEntry } from './cache';
 
-/**
- * In-Memory Cache, um Race Conditions zu vermeiden
- */
-let cache: { [key: string]: { updatedAt: number; youtubeUrl: string | null } } = {};
+// Rate limiting configuration
+const MAX_REQUESTS_BEFORE_COOLDOWN = 8;
+const COOLDOWN_TIME_MS = 90_000; // 90 seconds
 
-/**
- * Lade den Cache einmal beim Initialisieren des Moduls
- */
-(async () => {
-  cache = await loadCache();
-  if (config.DEBUG) {
-    console.log(`[Odesli] Cache geladen. Anzahl Einträge: ${Object.keys(cache).length}`);
-  }
-})();
+// In-memory variables for rate limiting.
+let requestsSinceCooldown = 0;
+let isCooldownActive = false;
 
-/**
- * Rate-Limit Tracking Variablen
- */
-let requestsSinceCooldown = 0;   // Anzahl Requests seit letztem Cooldown
-let isCooldownActive = false;    // Flag, ob gerade ein Cooldown läuft
-
-/**
- * Queue-Mechanismus, um getOdesliLink Anfragen seriell zu verarbeiten
- */
+// Request queue to serialize Odesli API requests.
 let isProcessing = false;
 let pendingPromises: Array<() => void> = [];
 
-async function enqueue() {
-  return new Promise<void>((resolve) => {
+/**
+ * Enqueues a request to ensure that only one Odesli API call is processed at a time.
+ *
+ * @returns A promise that resolves when it's this request's turn.
+ */
+async function enqueue(): Promise<void> {
+  return new Promise((resolve) => {
     pendingPromises.push(resolve);
     if (!isProcessing) {
       isProcessing = true;
@@ -59,118 +45,98 @@ async function enqueue() {
   });
 }
 
-async function processQueue() {
+/**
+ * Processes the queued requests sequentially.
+ */
+async function processQueue(): Promise<void> {
   while (pendingPromises.length > 0) {
     const resolve = pendingPromises.shift();
     if (resolve) resolve();
-    // Warte auf den nächsten Tick
+    // Wait for the next event loop tick.
     await new Promise((r) => setImmediate(r));
   }
   isProcessing = false;
 }
 
 /**
- * Ruft die Odesli-API auf und nutzt den In-Memory Cache.
- * Bei mehr als 8 Requests seit letztem Cooldown oder bei einem 429-Fehler wird 90 Sekunden gewartet.
- * Jeder Eintrag wird im Cache gespeichert, auch wenn kein YouTube-Link gefunden wurde.
+ * Converts an original URL into a corresponding YouTube URL using the Odesli API as a fallback.
+ *
+ * This function first checks the cache to see if a result already exists.
+ * If not, it enforces rate limiting (after MAX_REQUESTS_BEFORE_COOLDOWN requests, a cooldown is applied)
+ * and then makes an API call to Odesli to retrieve the YouTube URL.
+ *
+ * The result is stored in the cache with additional metadata.
+ *
+ * @param originalUrl - The URL to be converted.
+ * @returns A promise that resolves to the corresponding YouTube URL as a string, or null if not found.
  */
 export async function getOdesliLink(originalUrl: string): Promise<string | null> {
-  await enqueue(); // Sicherstellen, dass nur eine Anfrage gleichzeitig verarbeitet wird
-
-  // 1) Prüfen, ob im Cache vorhanden => Sofort zurückgeben
-  if (cache[originalUrl]?.youtubeUrl !== undefined) { // Auch null erlaubt
-    if (config.DEBUG) {
-      console.log(`[Odesli] Cache-Hit: ${originalUrl}`);
+  // First, check the cache.
+  try {
+    const cachedEntry = await getCacheEntry(originalUrl);
+    if (cachedEntry !== undefined) {
+      log(`[Odesli] Cache hit for URL: ${originalUrl}`);
+      return cachedEntry.youtubeUrl;
     }
-    return cache[originalUrl].youtubeUrl;
+  } catch (err) {
+    logError(`[Odesli] Error checking cache for URL: ${originalUrl}`, err as Error);
   }
 
-  // 2) Prüfen, ob eine Pause erforderlich ist (nach 8 Requests)
-  if (requestsSinceCooldown >= 8 && !isCooldownActive) {
-    if (config.DEBUG) {
-      console.warn(`[Odesli] Erreichte 8 Requests seit letztem Cooldown. Warte 90 Sekunden...`);
-    }
+  // Enqueue this request to ensure serialized processing.
+  await enqueue();
+
+  // Rate limiting: if the number of requests reaches the threshold, enforce a cooldown.
+  if (requestsSinceCooldown >= MAX_REQUESTS_BEFORE_COOLDOWN && !isCooldownActive) {
+    log(`[Odesli] Reached ${MAX_REQUESTS_BEFORE_COOLDOWN} requests. Initiating cooldown for ${COOLDOWN_TIME_MS / 1000} seconds.`);
     isCooldownActive = true;
-    // 90 Sekunden warten
-    await new Promise((resolve) => setTimeout(resolve, 90_000));
+    await new Promise((resolve) => setTimeout(resolve, COOLDOWN_TIME_MS));
     requestsSinceCooldown = 0;
     isCooldownActive = false;
   }
 
-  // Request-Zähler erhöhen
   requestsSinceCooldown++;
 
-  // 3) Anfrage an Odesli senden
-  if (config.DEBUG) {
-    console.log(`[Odesli] Anfrage für URL: ${originalUrl}`);
-  }
-
+  // Make the Odesli API request.
+  log(`[Odesli] Making API request for URL: ${originalUrl}`);
   try {
-    const resp = await axios.get<OdesliResponse>("https://api.song.link/v1-alpha.1/links", {
+    const response = await axios.get("https://api.song.link/v1-alpha.1/links", {
       params: { url: originalUrl },
     });
 
-    const youtubeUrl = resp.data.linksByPlatform?.youtube?.url || null;
+    // Extract the YouTube URL from the API response.
+    const youtubeUrl: string | null = response.data.linksByPlatform?.youtube?.url || null;
 
-    // 4) Ergebnis im Cache speichern (auch wenn youtubeUrl null ist)
-    cache[originalUrl] = {
+    // Build a cache entry. Since Odesli does not provide song metadata,
+    // we mark the song name and artist as "Unknown".
+    const entry: CacheEntry = {
+      platform: 'odesli',
+      songName: "Unknown",
+      artist: "Unknown",
+      youtubeUrl: youtubeUrl || "",
       updatedAt: Date.now(),
-      youtubeUrl,
     };
-    await saveCache(cache); // Sofort speichern
 
-    if (config.DEBUG) {
-      console.log(`[Odesli] Ergebnis: ${youtubeUrl ? youtubeUrl : "Kein YouTube-Link gefunden"}`);
-    }
+    // Update the cache with the result.
+    await updateCacheEntry(originalUrl, entry);
 
-    return youtubeUrl;
-  } catch (error: any) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-
-      if (status === 429) {
-        console.warn("[Odesli] Fehler 429 (Too Many Requests) – Wir wurden rate-limitiert.");
-
-        // Sofort 90 Sekunden warten bei 429
-        if (!isCooldownActive) {
-          if (config.DEBUG) {
-            console.warn("[Odesli] Warte 90 Sekunden aufgrund 429...");
-          }
-          isCooldownActive = true;
-          await new Promise((resolve) => setTimeout(resolve, 90_000));
-          requestsSinceCooldown = 0;
-          isCooldownActive = false;
-        }
-
-        // Ergebnis im Cache mit youtubeUrl: null speichern
-        cache[originalUrl] = {
-          updatedAt: Date.now(),
-          youtubeUrl: null,
-        };
-        await saveCache(cache); // Speichern trotz Fehler
-
-      } else {
-        // Andere HTTP-Fehler (z. B. 404, 500)
-        console.error("[Odesli] HTTP-Fehler:", status, error.message);
-
-        // Ergebnis im Cache mit youtubeUrl: null speichern
-        cache[originalUrl] = {
-          updatedAt: Date.now(),
-          youtubeUrl: null,
-        };
-        await saveCache(cache); // Speichern trotz Fehler
-      }
+    if (youtubeUrl) {
+      log(`[Odesli] Found YouTube URL: ${youtubeUrl}`);
     } else {
-      // Netzwerkfehler oder andere Fehler
-      console.error("[Odesli] Unbekannter Fehler:", error);
-
-      // Ergebnis im Cache mit youtubeUrl: null speichern
-      cache[originalUrl] = {
-        updatedAt: Date.now(),
-        youtubeUrl: null,
-      };
-      await saveCache(cache); // Speichern trotz Fehler
+      logError(`[Odesli] No YouTube URL found for: ${originalUrl}`);
     }
+    return youtubeUrl;
+  } catch (err) {
+    logError(`[Odesli] Error during API request for URL: ${originalUrl}`, err as Error);
+    // Even in case of error, store a cache entry with an empty YouTube URL.
+    const entry: CacheEntry = {
+      platform: 'odesli',
+      songName: "Unknown",
+      artist: "Unknown",
+      youtubeUrl: "",
+      updatedAt: Date.now(),
+    };
+    await updateCacheEntry(originalUrl, entry);
+    handleError(null, err as Error);
     return null;
   }
 }

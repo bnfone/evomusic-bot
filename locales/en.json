@@ -104,7 +104,11 @@
 		"errorYoutubeGeneric": "An error occurred while fetching the YouTube playlist.",
 		"addedSpotifySongs": "{count} Spotify songs have been added to the queue.",
 		"shuffleEnabled": "Queue has been shuffled.",
-		"errorSpotifyNoSongs": "playlist.errorSpotifyNoSongs"
+		"errorSpotifyNoSongs": "playlist.errorSpotifyNoSongs",
+		"addedAppleSongs": "playlist.addedAppleSongs",
+		"addedYoutubeSongs": "playlist.addedYoutubeSongs",
+		"errorAppleGeneric": "playlist.errorAppleGeneric",
+		"errorSpotifyGeneric": "playlist.errorSpotifyGeneric"
 	},
 	"pruning": {
 		"description": "Toggle pruning of bot messages",
@@ -206,5 +210,12 @@
 	},
 	"leave": {
 		"description": "leave.description"
+	},
+	"stats": {
+		"error": "stats.error"
+	},
+	"voice": {
+		"inactivityCountdown": "voice.inactivityCountdown",
+		"leftDueToInactivity": "voice.leftDueToInactivity"
 	}
 }
