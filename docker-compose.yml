@@ -1,9 +1,21 @@
+#version: '3.8'
+
 services:
   discord-music-bot:
     build: .
     container_name: discord-music-bot
     env_file: .env
+    # environment:
+    #   - TOKEN=${TOKEN}
+    #   - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+    #   - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
+    #   - MAX_PLAYLIST_SIZE=${MAX_PLAYLIST_SIZE}
+    #   - PRUNING=${PRUNING}
+    #   - LOCALE=${LOCALE}
+    #   - STAY_TIME=${STAY_TIME}
+    #   - DEFAULT_VOLUME=${DEFAULT_VOLUME}
+    #   - DEBUG=true
     volumes:
-      - ./data:/dist/data
+      - ./config:/home/evobot/config
     restart: unless-stopped
 
