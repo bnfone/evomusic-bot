@@ -14,7 +14,7 @@ export default {
 
     const song = queue.songs[0];
     if (!queue.resource) {
-      return interaction.reply("Momentan läuft kein Song, also keine Resource!");
+      return interaction.reply(i18n.__("nowplaying.nothingPlaying")).catch(console.error);
     }
     
     const seek = queue.resource.playbackDuration / 1000;

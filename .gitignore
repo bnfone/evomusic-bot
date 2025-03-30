@@ -71,3 +71,7 @@ config.json
 
 build-and-start-docker.sh
 cache.json
+data/*.json
+notes.md
+/data/advertisements/drafts
+*-base.js
