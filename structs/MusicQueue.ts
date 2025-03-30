@@ -41,6 +41,8 @@ import { safeReply } from "../utils/safeReply";
 import { logSongPlayed, logSongSkipped } from "../utils/stats";
 import { getRandomAdFile, sendAdvertisementEmbed } from "../utils/advertisements";
 import { handleError } from "../utils/errorHandler";
+import { addFavorite, removeFavorite, getUserFavorites } from "../utils/favorites";
+import { log, error as logError } from "../utils/logger";
 
 const wait = promisify(setTimeout);
 
@@ -364,6 +366,36 @@ export class MusicQueue {
     await this.bot.slashCommandsMap.get("skip")!.execute(interaction);
   }
 
+  // Add a new button handler for toggling favorite status.
+  private async handleFavoriteToggler(interaction: ButtonInteraction): Promise<void> {
+    // Get the current song from the resource metadata.
+    if (!this.resource) {
+      await interaction.reply({ content: i18n.__("favorite.toggle.noSong"), ephemeral: true }).catch(logError);
+      return;
+    }
+    const song = this.resource.metadata as Song;
+    const userId = interaction.user.id;
+    const userFavs = getUserFavorites(userId);
+
+    try {
+      if (userFavs.includes(song.url)) {
+        // If the song is already a favorite, remove it.
+        removeFavorite(userId, song.url);
+        log(`User ${userId} removed favorite: ${song.title}`);
+        // Ensure the return value is void by casting the result.
+        await interaction.reply({ content: i18n.__mf("favorite.toggle.removed", { title: song.title }), ephemeral: true }) as unknown as void;
+      } else {
+        // Otherwise, add it.
+        addFavorite(userId, song.url, song.title);
+        log(`User ${userId} added favorite: ${song.title}`);
+        await interaction.reply({ content: i18n.__mf("favorite.toggle.added", { title: song.title }), ephemeral: true }) as unknown as void;
+      }
+    } catch (err) {
+      logError("[MusicQueue] Error toggling favorite status:", err as Error);
+      await interaction.reply({ content: i18n.__("favorite.toggle.error"), ephemeral: true }).catch(logError);
+    }
+  }
+
   private async handlePlayPause(interaction: ButtonInteraction): Promise<void> {
     if (this.player.state.status === AudioPlayerStatus.Playing) {
       await this.bot.slashCommandsMap.get("pause")!.execute(interaction);
@@ -432,13 +464,14 @@ export class MusicQueue {
     ["increase_volume", this.handleIncreaseVolume],
     ["loop", this.handleLoop],
     ["shuffle", this.handleShuffle],
-    ["stop", this.handleStop]
+    ["stop", this.handleStop],
+    ["favorite_toggler", this.handleFavoriteToggler]
   ]);
 
   private createButtonRow() {
     const firstRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId("skip").setLabel("⏭").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("play_pause").setLabel("⏯").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("skip").setLabel("⏭️").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("play_pause").setLabel("⏯️").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("mute").setLabel("🔇").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("decrease_volume").setLabel("🔉").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("increase_volume").setLabel("🔊").setStyle(ButtonStyle.Secondary)
@@ -446,7 +479,8 @@ export class MusicQueue {
     const secondRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId("loop").setLabel("🔁").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("shuffle").setLabel("🔀").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("stop").setLabel("⏹").setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId("stop").setLabel("⏹️").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("favorite_toggler").setLabel("🩶").setStyle(ButtonStyle.Secondary)
     );
 
     return [firstRow, secondRow];
