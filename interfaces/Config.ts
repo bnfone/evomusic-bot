@@ -8,4 +8,10 @@ export interface Config {
   DEFAULT_VOLUME: number;
   LOCALE: string;
   DEBUG?: boolean;
+  ADVERTISEMENT_INTERVAL?: number;
+  LOG_TERMINAL?: boolean;
+  LOG_COMMANDS?: boolean;
+  pipedApiUrl?: string;
+  usePipedFallback?: boolean;
+  USE_METADATA_EXTRACTION?: boolean;
 }
