@@ -20,10 +20,11 @@
     "format": "npx prettier --write '**/*.ts' --config .prettierrc"
   },
   "dependencies": {
-    "@discordjs/voice": "^0.17.0",
+    "@discordjs/voice": "^0.18.0",
     "@distube/ytdl-core": "github:ToddyTheNoobDud/ytdl-core-stuff",
     "array-move": "^3.0.0",
     "cheerio": "^1.0.0",
+    "cross-spawn": "^7.0.6",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "ffmpeg-static": "^5.2.0",
@@ -34,22 +35,22 @@
     "string-progressbar": "^1.0.4",
     "tar": "^7.4.3",
     "ws": "^8.18.0",
-    "youtube-dl-exec": "^3.0.10",
+    "youtube-dl-exec": "^3.0.20",
     "youtube-sr": "^4.3.11"
   },
   "devDependencies": {
     "@types/i18n": "^0.13.12",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.5.2",
+    "@types/node": "^22.13.14",
     "@types/tough-cookie": "^4.0.5",
     "braces": "^3.0.3",
     "cz-conventional-changelog": "^3.0.1",
     "nodemon": "^3.1.4",
-    "prettier": "^3.3.3",
+    "prettier": "^3.5.3",
     "ts-node": "^10.9.2"
   },
   "optionalDependencies": {
-    "@discordjs/opus": "^0.9.0",
+    "@discordjs/opus": "^0.10.0",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
     "sodium-native": "^4.1.1",
