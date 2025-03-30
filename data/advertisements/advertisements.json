@@ -1,0 +1,96 @@
+[
+    {
+      "embed": {
+        "title": "🎶 Enjoying the vibes?",
+        "description": "This bot is fully open source and made with way too much love (and caffeine).\n👉 Drop a ⭐ on the GitHub repo to support it!\n💸 Feeling generous? Donations help with updates & server costs!\nEvery click fuels the music… and prevents one developer meltdown 😌❤️",
+        "color": "#F8AA2A"
+      },
+      "buttons": [
+        {
+          "label": "Star on GitHub",
+          "style": "LINK",
+          "url": "https://github.com/bnfone/discord-bot-evomusic"
+        },
+        {
+          "label": "Donate",
+          "style": "LINK",
+          "url": "https://bnf.one/devdonations"
+        },
+        {
+          "label": "Skip Ad",
+          "emoji": "🤝",
+          "custom_id": "ad_skip",
+          "style": "SECONDARY"
+        }
+      ],
+      "priority": 1,
+      "audioFiles": [
+        "ad_evomusic-00001.mp3",
+        "ad_evomusic-00002.mp3",
+        "ad_evomusic-00003.mp3",
+        "ad_evomusic-00004.mp3",
+        "ad_evomusic-00005.mp3",
+        "ad_evomusic-00006.mp3",
+        "ad_evomusic-00007.mp3",
+        "ad_evomusic-00008.mp3",
+        "ad_evomusic-00009.mp3",
+        "ad_evomusic-00010.mp3",
+        "ad_evomusic-00011.mp3",
+        "ad_evomusic-00012.mp3",
+        "ad_evomusic-00013.mp3",
+        "ad_evomusic-00014.mp3",
+        "ad_evomusic-00015.mp3",
+        "ad_evomusic-00016.mp3",
+        "ad_evomusic-00017.mp3",
+        "ad_evomusic-00018.mp3"
+      ]
+    },
+    {
+      "embed": {
+        "title": "🏳️‍⚧️🏳️‍🌈 Support Trans and Queer Rights in the USA!",
+        "description": "The **Human Rights Campaign** (HRC) tirelessly advocates for LGBTQ+ equality. Your donation funds critical programs and combats discriminatory laws. Every contribution fuels the fight for a just society.\n\n**Donate now** to support the HRC's mission and make a difference in the lives of countless individuals. Together, we can create a world where everyone is treated with dignity and respect.",
+        "color": "#5BCEFA"
+      },
+      "buttons": [
+        {
+          "label": "Donate to the Human Rights Campaign",
+          "style": "LINK",
+          "url": "https://www.hrc.org/"
+        },
+        {
+          "label": "Skip Ad",
+          "style": "SECONDARY",
+          "custom_id": "ad_skip",
+          "emoji": "⏭️"
+        }
+      ],
+      "priority": 2,
+      "audioFiles": [
+        "ad_humanrights-00001.mp3"
+      ]
+    },
+    {
+      "embed": {
+        "title": "🌍🌱 Protect Our Planet—Act Now!",
+        "description": "The Environmental Defense Fund (EDF) is at the forefront of the fight against climate change and environmental degradation. Your donation empowers EDF to implement solutions that safeguard our Earth’s future. Every contribution brings us closer to a sustainable world.",
+        "color": "#00FF7F"
+      },
+      "buttons": [
+        {
+          "label": "Donate to the Environmental Defense Fund",
+          "style": "LINK",
+          "url": "https://www.edf.org/"
+        },
+        {
+          "label": "Skip Ad",
+          "style": "SECONDARY",
+          "custom_id": "ad_skip",
+          "emoji": "🤝"
+        }
+      ],
+      "priority": 2,
+      "audioFiles": [
+        "ad_enviornment-00001.mp3"
+      ]
+    }
+  ]

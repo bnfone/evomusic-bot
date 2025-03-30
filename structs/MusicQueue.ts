@@ -39,7 +39,7 @@ import { canModifyQueue } from "../utils/queue";
 import { Song } from "./Song";
 import { safeReply } from "../utils/safeReply";
 import { logSongPlayed, logSongSkipped } from "../utils/stats";
-import { getRandomAdFile, sendAdvertisementEmbed } from "../utils/advertisements";
+import { getRandomAudioFileForAd, sendAdvertisementEmbed } from "../utils/advertisements";
 import { handleError } from "../utils/errorHandler";
 import { addFavorite, removeFavorite, getUserFavorites } from "../utils/favorites";
 import { log, error as logError } from "../utils/logger";
@@ -121,7 +121,7 @@ export class MusicQueue {
       ) {
         this.readyLock = true;
         try {
-          await entersState(this.connection, VoiceConnectionStatus.Ready, 20_000);
+          await entersState(this.connection, VoiceConnectionStatus.Ready, 20000);
         } catch {
           if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
             try {
@@ -151,18 +151,14 @@ export class MusicQueue {
             const playedMs = Date.now() - this.currentSongStartTime;
             const playedPercentage = playedMs / (currentSong.duration * 1000);
             const requesterId = (currentSong as any).requesterId || "unknown";
-            // If more than 50% of the song is played, count it as "played"
             if (playedPercentage >= 0.5) {
               await logSongPlayed(requesterId, currentSong.url, playedMs / 60000, "youtube", currentSong.title);
             } else {
-              // Otherwise, count it as "skipped"
               await logSongSkipped(requesterId, currentSong.url, currentSong.title);
             }
           }
-          // Increase advertisement counter for every normal song played.
           this.advertisementCounter++;
         }
-        // Reset start time.
         this.currentSongStartTime = null;
     
         // Remove the song from the queue (looping handled if enabled)
@@ -176,13 +172,11 @@ export class MusicQueue {
             }
           }
         }
-        // If advertisement interval is reached, play an ad.
         if (!isAd && config.ADVERTISEMENT_INTERVAL && this.advertisementCounter >= config.ADVERTISEMENT_INTERVAL) {
           this.advertisementCounter = 0;
           await this.playAdvertisement();
-          return; // playAdvertisement() will resume playback via state change events.
+          return;
         }
-        // Resume processing the queue.
         if (this.songs.length) {
           this.processQueue();
         }
@@ -190,9 +184,7 @@ export class MusicQueue {
         oldState.status === AudioPlayerStatus.Buffering &&
         newState.status === AudioPlayerStatus.Playing
       ) {
-        // Record the start time when the song starts playing.
         this.currentSongStartTime = Date.now();
-        // Optionally, send a "now playing" message if supported.
         if (this.resource && typeof (this.resource.metadata as any).startMessage === "function") {
           this.sendPlayingMessage(newState as AudioPlayerPlayingState);
         }
@@ -202,14 +194,11 @@ export class MusicQueue {
     // Player error event with unified error handling
     this.player.on("error", async (error) => {
       console.error("[MusicQueue] AudioPlayer encountered an error:", error);
-      // Use the unified error handler to notify the user via the original interaction
       if (this.interaction) {
         await handleError(this.interaction, error);
       } else {
-        // Fallback: send a simple error message to the text channel
         this.textChannel.send(i18n.__("common.errorCommand")).catch(console.error);
       }
-      // Remove the problematic song from the queue and continue processing
       if (this.loop && this.songs.length) {
         this.songs.push(this.songs.shift()!);
       } else {
@@ -227,7 +216,6 @@ export class MusicQueue {
     if (this.waitTimeout !== null) clearTimeout(this.waitTimeout);
     this.waitTimeout = null;
     this.stopped = false;
-
     this.songs = this.songs.concat(songs);
     this.processQueue();
   }
@@ -238,18 +226,14 @@ export class MusicQueue {
    */
   public stop() {
     if (this.stopped) return;
-
     this.stopped = true;
     this.loop = false;
     this.songs = [];
     this.player.stop();
-
     if (!config.PRUNING) {
       this.textChannel.send(i18n.__("play.queueEnded")).catch(console.error);
     }
-
     if (this.waitTimeout !== null) return;
-
     this.waitTimeout = setTimeout(() => {
       if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
         try {
@@ -257,7 +241,6 @@ export class MusicQueue {
         } catch {}
       }
       bot.queues.delete(this.interaction.guild!.id);
-
       if (!config.PRUNING) {
         this.textChannel.send(i18n.__("play.leaveChannel"));
       }
@@ -272,32 +255,24 @@ export class MusicQueue {
     if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
       return;
     }
-
     if (!this.songs.length) {
       return this.stop();
     }
-
     this.queueLock = true;
-
     const nextSong = this.songs[0];
     try {
       const resource = await nextSong.makeResource();
       if (!resource) {
-        // If resource is null/undefined, skip the song and process the next one
         this.songs.shift();
         return this.processQueue();
       }
-
       this.resource = resource;
       this.player.play(this.resource);
-      // Set the volume
       this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
-      // Record the start time when the song starts playing
       this.currentSongStartTime = Date.now();
     } catch (error) {
       console.error(`Error playing song: ${error}`);
       this.songs.shift();
-      // Use unified error handler to notify user about the error during playback
       if (this.textChannel && this.interaction) {
         await handleError(this.interaction, error as Error);
       }
@@ -313,38 +288,44 @@ export class MusicQueue {
    */
   private async playAdvertisement(): Promise<void> {
     if (config.DEBUG) console.log("[MusicQueue] Advertisement interval reached. Playing advertisement...");
-    const adFilePath = await getRandomAdFile();
+  
+    // Destructure the returned object from sendAdvertisementEmbed
+    const { message: adMessage, adConfig } = await sendAdvertisementEmbed(this.textChannel);
+  
+    // Get the audio file corresponding to the selected ad configuration
+    const adFilePath = getRandomAudioFileForAd(adConfig);
     if (!adFilePath) {
       if (config.DEBUG) console.log("[MusicQueue] No advertisement file available. Skipping ad.");
-      // Continue processing the queue if no ad file is found
       return this.processQueue();
     }
-
-    // Send advertisement embed to the text channel
-    await sendAdvertisementEmbed(this.textChannel);
-
+  
+    if (adMessage) {
+      const adCollector = adMessage.createMessageComponentCollector({
+        filter: (i: Interaction): i is ButtonInteraction =>
+          i.isButton() && i.message.id === adMessage.id && i.customId === "ad_skip",
+        time: 30000
+      });
+      adCollector.on("collect", async (interaction: ButtonInteraction) => {
+        await this.handleAdSkip(interaction);
+        adCollector.stop();
+      });
+    }
+  
     try {
-      // Create a read stream for the advertisement file
       const adStream = createReadStream(adFilePath);
-      // Dynamically import createAudioResource from @discordjs/voice
       const { createAudioResource } = await import("@discordjs/voice");
       const adResource = createAudioResource(adStream, {
         inputType: StreamType.Arbitrary,
         inlineVolume: true,
         metadata: { title: "Advertisement" }
       });
-      // Play the advertisement resource
       this.resource = adResource;
       this.player.play(this.resource);
-      // Set the volume for the advertisement
       this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
-      // Record the start time (not used for advertisement stats)
       this.currentSongStartTime = Date.now();
     } catch (error) {
       console.error("[MusicQueue] Error playing advertisement:", error);
-      // Optionally, you could call handleError here as well if needed
     }
-    // When the advertisement finishes, the state change event will trigger processQueue()
   }
 
   /**
@@ -353,7 +334,6 @@ export class MusicQueue {
    */
   public shuffle(): void {
     if (this.songs.length < 2) return;
-
     for (let i = this.songs.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [this.songs[i], this.songs[j]] = [this.songs[j], this.songs[i]];
@@ -366,9 +346,23 @@ export class MusicQueue {
     await this.bot.slashCommandsMap.get("skip")!.execute(interaction);
   }
 
-  // Add a new button handler for toggling favorite status.
+  /**
+   * Handles the "Skip Ad" button interaction.
+   * This will stop the current advertisement and resume processing the queue.
+   */
+  private async handleAdSkip(interaction: ButtonInteraction): Promise<void> {
+    log(`User ${interaction.user.id} requested to skip the advertisement.`);
+    this.player.stop();
+    await interaction.reply({ content: i18n.__("advertisement.skipped"), ephemeral: true });
+    if (this.songs.length) {
+      this.processQueue();
+    }
+  }
+
+  /**
+   * Handles toggling the favorite status of the current song.
+   */
   private async handleFavoriteToggler(interaction: ButtonInteraction): Promise<void> {
-    // Get the current song from the resource metadata.
     if (!this.resource) {
       await interaction.reply({ content: i18n.__("favorite.toggle.noSong"), ephemeral: true }).catch(logError);
       return;
@@ -376,19 +370,15 @@ export class MusicQueue {
     const song = this.resource.metadata as Song;
     const userId = interaction.user.id;
     const userFavs = getUserFavorites(userId);
-
     try {
       if (userFavs.includes(song.url)) {
-        // If the song is already a favorite, remove it.
         removeFavorite(userId, song.url);
         log(`User ${userId} removed favorite: ${song.title}`);
-        // Ensure the return value is void by casting the result.
-        await interaction.reply({ content: i18n.__mf("favorite.toggle.removed", { title: song.title }), ephemeral: true }) as unknown as void;
+        await interaction.reply({ content: i18n.__mf("favorite.toggle.removed", { title: song.title }), ephemeral: true });
       } else {
-        // Otherwise, add it.
         addFavorite(userId, song.url, song.title);
         log(`User ${userId} added favorite: ${song.title}`);
-        await interaction.reply({ content: i18n.__mf("favorite.toggle.added", { title: song.title }), ephemeral: true }) as unknown as void;
+        await interaction.reply({ content: i18n.__mf("favorite.toggle.added", { title: song.title }), ephemeral: true });
       }
     } catch (err) {
       logError("[MusicQueue] Error toggling favorite status:", err as Error);
@@ -406,9 +396,7 @@ export class MusicQueue {
 
   private async handleMute(interaction: ButtonInteraction): Promise<void> {
     if (!canModifyQueue(interaction.member as GuildMember)) return;
-
     this.muted = !this.muted;
-
     if (this.muted) {
       this.resource?.volume?.setVolumeLogarithmic(0);
       safeReply(interaction, i18n.__mf("play.mutedSong", { author: interaction.user })).catch(console.error);
@@ -421,27 +409,17 @@ export class MusicQueue {
   private async handleDecreaseVolume(interaction: ButtonInteraction): Promise<void> {
     if (this.volume === 0) return;
     if (!canModifyQueue(interaction.member as GuildMember)) return;
-
     this.volume = Math.max(this.volume - 10, 0);
     this.resource?.volume?.setVolumeLogarithmic(this.volume / 100);
-
-    safeReply(interaction, i18n.__mf("play.decreasedVolume", {
-      author: interaction.user,
-      volume: this.volume
-    })).catch(console.error);
+    safeReply(interaction, i18n.__mf("play.decreasedVolume", { author: interaction.user, volume: this.volume })).catch(console.error);
   }
 
   private async handleIncreaseVolume(interaction: ButtonInteraction): Promise<void> {
     if (this.volume === 100) return;
     if (!canModifyQueue(interaction.member as GuildMember)) return;
-
     this.volume = Math.min(this.volume + 10, 100);
     this.resource?.volume?.setVolumeLogarithmic(this.volume / 100);
-
-    safeReply(interaction, i18n.__mf("play.increasedVolume", {
-      author: interaction.user,
-      volume: this.volume
-    })).catch(console.error);
+    safeReply(interaction, i18n.__mf("play.increasedVolume", { author: interaction.user, volume: this.volume })).catch(console.error);
   }
 
   private async handleLoop(interaction: ButtonInteraction): Promise<void> {
@@ -456,7 +434,7 @@ export class MusicQueue {
     await this.bot.slashCommandsMap.get("stop")!.execute(interaction);
   }
 
-  private commandHandlers = new Map([
+  private commandHandlers = new Map<string, (interaction: ButtonInteraction) => Promise<void>>([
     ["skip", this.handleSkip],
     ["play_pause", this.handlePlayPause],
     ["mute", this.handleMute],
@@ -465,10 +443,11 @@ export class MusicQueue {
     ["loop", this.handleLoop],
     ["shuffle", this.handleShuffle],
     ["stop", this.handleStop],
-    ["favorite_toggler", this.handleFavoriteToggler]
+    ["favorite_toggler", this.handleFavoriteToggler],
+    ["ad_skip", this.handleAdSkip]
   ]);
 
-  private createButtonRow() {
+  private createButtonRow(): ActionRowBuilder<ButtonBuilder>[] {
     const firstRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId("skip").setLabel("⏭️").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("play_pause").setLabel("⏯️").setStyle(ButtonStyle.Secondary),
@@ -482,7 +461,6 @@ export class MusicQueue {
       new ButtonBuilder().setCustomId("stop").setLabel("⏹️").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("favorite_toggler").setLabel("🩶").setStyle(ButtonStyle.Secondary)
     );
-
     return [firstRow, secondRow];
   }
 
@@ -491,17 +469,13 @@ export class MusicQueue {
    * as interactive buttons. If the current resource does not implement startMessage (e.g. advertisement),
    * the function will simply return without sending a message.
    */
-  private async sendPlayingMessage(newState: AudioPlayerPlayingState) {
+  private async sendPlayingMessage(newState: AudioPlayerPlayingState): Promise<void> {
     const metadata = newState.resource.metadata;
-    // Check if the metadata has a startMessage function (normal song)
     if (typeof (metadata as any).startMessage !== "function") {
-      // Likely an advertisement; do not send a playing message.
       return;
     }
     const song = metadata as Song;
-
     let playingMessage: Message;
-
     try {
       playingMessage = await this.textChannel.send({
         content: song.startMessage(),
@@ -514,29 +488,20 @@ export class MusicQueue {
       }
       return;
     }
-
-    const filter = (i: Interaction) => i.isButton() && i.message.id === playingMessage.id;
+    const filter = (i: Interaction): i is ButtonInteraction =>
+      i.isButton() && i.message.id === playingMessage.id;
     const collector = playingMessage.createMessageComponentCollector({
-      filter,
+      filter: (i: Interaction): i is ButtonInteraction =>
+        i.isButton() && i.message.id === playingMessage.id,
       time: song.duration > 0 ? song.duration * 1000 : 60000
     });
-
-    collector.on("collect", async (interaction) => {
-      if (!interaction.isButton()) return;
-      if (!this.songs) return;
-
+    collector.on("collect", async (interaction: ButtonInteraction) => {
       const handler = this.commandHandlers.get(interaction.customId);
-
-      // For skip/stop, end the collector
       if (["skip", "stop"].includes(interaction.customId)) collector.stop();
-
       if (handler) await handler.call(this, interaction);
     });
-
     collector.on("end", () => {
       playingMessage.edit({ components: [] }).catch(console.error);
-
-      // Auto-delete if pruning is enabled
       if (config.PRUNING) {
         setTimeout(() => {
           playingMessage.delete().catch(() => {});
@@ -551,7 +516,7 @@ export class MusicQueue {
   }
 
   // Starts playback by processing the queue
-  public play() {
+  public play(): void {
     this.processQueue();
   }
 }
