@@ -74,3 +74,4 @@ cache.json
 data/*.json
 notes.md
 /data/advertisements/drafts
+*-base.js
