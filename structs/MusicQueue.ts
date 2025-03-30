@@ -1,3 +1,8 @@
+// /structs/MusicQueue.ts
+// This module manages the music queue, playback and control buttons.
+// Advertisement functionality is integrated so that after a configured number of normal songs,
+// an advertisement is played (without being displayed in the queue).
+
 import {
   AudioPlayer,
   AudioPlayerPlayingState,
@@ -10,7 +15,8 @@ import {
   VoiceConnection,
   VoiceConnectionDisconnectReason,
   VoiceConnectionState,
-  VoiceConnectionStatus
+  VoiceConnectionStatus,
+  StreamType
 } from "@discordjs/voice";
 import {
   ActionRowBuilder,
@@ -23,6 +29,7 @@ import {
   Message,
   TextChannel
 } from "discord.js";
+import { createReadStream } from "fs";
 import { promisify } from "node:util";
 import { bot } from "../index";
 import { QueueOptions } from "../interfaces/QueueOptions";
@@ -31,6 +38,11 @@ import { i18n } from "../utils/i18n";
 import { canModifyQueue } from "../utils/queue";
 import { Song } from "./Song";
 import { safeReply } from "../utils/safeReply";
+import { logSongPlayed, logSongSkipped } from "../utils/stats";
+import { getRandomAudioFileForAd, sendAdvertisementEmbed } from "../utils/advertisements";
+import { handleError } from "../utils/errorHandler";
+import { addFavorite, removeFavorite, getUserFavorites } from "../utils/favorites";
+import { log, error as logError } from "../utils/logger";
 
 const wait = promisify(setTimeout);
 
@@ -50,6 +62,10 @@ export class MusicQueue {
   private queueLock = false;
   private readyLock = false;
   private stopped = false;
+  // Record the start time for the currently playing song
+  private currentSongStartTime: number | null = null;
+  // Counter for the number of normal songs played since the last advertisement
+  private advertisementCounter: number = 0;
 
   /**
    * Constructs a new MusicQueue instance, setting up the audio player,
@@ -84,15 +100,15 @@ export class MusicQueue {
           newState.reason === VoiceConnectionDisconnectReason.WebSocketClose &&
           newState.closeCode === 4014
         ) {
-          // Beschreibt: Possibly kicked out etc.
+          // Possibly kicked out etc.
           try {
             this.stop();
           } catch (e) {
-            console.log(e);
+            console.error(e);
             this.stop();
           }
         } else if (this.connection.rejoinAttempts < 5) {
-          // Warte, dann versuche rejoin
+          // Wait and then try to rejoin
           await wait((this.connection.rejoinAttempts + 1) * 5000);
           this.connection.rejoin();
         } else {
@@ -105,7 +121,7 @@ export class MusicQueue {
       ) {
         this.readyLock = true;
         try {
-          await entersState(this.connection, VoiceConnectionStatus.Ready, 20_000);
+          await entersState(this.connection, VoiceConnectionStatus.Ready, 20000);
         } catch {
           if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
             try {
@@ -120,42 +136,74 @@ export class MusicQueue {
 
     // Player state changes
     this.player.on("stateChange", async (oldState: AudioPlayerState, newState: AudioPlayerState) => {
+      // When a song finishes (transition from Playing to Idle)
       if (
-        oldState.status !== AudioPlayerStatus.Idle &&
+        oldState.status === AudioPlayerStatus.Playing &&
         newState.status === AudioPlayerStatus.Idle
       ) {
-        // Song ist zu Ende
-        if (this.loop && this.songs.length) {
-          // Rotiere das Array
-          this.songs.push(this.songs.shift()!);
-        } else {
-          // Next
-          this.songs.shift();
-          if (!this.songs.length) {
-            return this.stop();
+        const currentMetadata = this.resource ? this.resource.metadata : null;
+        const isAd = currentMetadata && (currentMetadata as Song).title === "Advertisement";
+    
+        // For a normal song, log play or skip statistics:
+        if (!isAd && this.resource) {
+          if (this.currentSongStartTime !== null) {
+            const currentSong = this.resource.metadata as Song;
+            const playedMs = Date.now() - this.currentSongStartTime;
+            const playedPercentage = playedMs / (currentSong.duration * 1000);
+            const requesterId = (currentSong as any).requesterId || "unknown";
+            if (playedPercentage >= 0.5) {
+              await logSongPlayed(requesterId, currentSong.url, playedMs / 60000, "youtube", currentSong.title);
+            } else {
+              await logSongSkipped(requesterId, currentSong.url, currentSong.title);
+            }
+          }
+          this.advertisementCounter++;
+        }
+        this.currentSongStartTime = null;
+    
+        // Remove the song from the queue (looping handled if enabled)
+        if (!isAd) {
+          if (this.loop && this.songs.length) {
+            this.songs.push(this.songs.shift()!);
+          } else {
+            this.songs.shift();
+            if (!this.songs.length) {
+              return this.stop();
+            }
           }
         }
-
-        if (this.songs.length || this.resource?.audioPlayer) {
+        if (!isAd && config.ADVERTISEMENT_INTERVAL && this.advertisementCounter >= config.ADVERTISEMENT_INTERVAL) {
+          this.advertisementCounter = 0;
+          await this.playAdvertisement();
+          return;
+        }
+        if (this.songs.length) {
           this.processQueue();
         }
       } else if (
         oldState.status === AudioPlayerStatus.Buffering &&
         newState.status === AudioPlayerStatus.Playing
       ) {
-        this.sendPlayingMessage(newState as AudioPlayerPlayingState);
+        this.currentSongStartTime = Date.now();
+        if (this.resource && typeof (this.resource.metadata as any).startMessage === "function") {
+          this.sendPlayingMessage(newState as AudioPlayerPlayingState);
+        }
       }
     });
 
-    this.player.on("error", (error) => {
-      console.error(error);
-
+    // Player error event with unified error handling
+    this.player.on("error", async (error) => {
+      console.error("[MusicQueue] AudioPlayer encountered an error:", error);
+      if (this.interaction) {
+        await handleError(this.interaction, error);
+      } else {
+        this.textChannel.send(i18n.__("common.errorCommand")).catch(console.error);
+      }
       if (this.loop && this.songs.length) {
         this.songs.push(this.songs.shift()!);
       } else {
         this.songs.shift();
       }
-
       this.processQueue();
     });
   }
@@ -168,29 +216,24 @@ export class MusicQueue {
     if (this.waitTimeout !== null) clearTimeout(this.waitTimeout);
     this.waitTimeout = null;
     this.stopped = false;
-
     this.songs = this.songs.concat(songs);
     this.processQueue();
   }
 
   /**
    * Stops the queue entirely: clears songs, stops the player,
-   * optionally leaves the voice channel after a timeout.
+   * and optionally leaves the voice channel after a timeout.
    */
   public stop() {
     if (this.stopped) return;
-
     this.stopped = true;
     this.loop = false;
     this.songs = [];
     this.player.stop();
-
     if (!config.PRUNING) {
       this.textChannel.send(i18n.__("play.queueEnded")).catch(console.error);
     }
-
     if (this.waitTimeout !== null) return;
-
     this.waitTimeout = setTimeout(() => {
       if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
         try {
@@ -198,7 +241,6 @@ export class MusicQueue {
         } catch {}
       }
       bot.queues.delete(this.interaction.guild!.id);
-
       if (!config.PRUNING) {
         this.textChannel.send(i18n.__("play.leaveChannel"));
       }
@@ -213,38 +255,26 @@ export class MusicQueue {
     if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
       return;
     }
-
     if (!this.songs.length) {
       return this.stop();
     }
-
     this.queueLock = true;
-
     const nextSong = this.songs[0];
     try {
       const resource = await nextSong.makeResource();
       if (!resource) {
-        // Falls resource null/undefined => skip
         this.songs.shift();
         return this.processQueue();
       }
-
       this.resource = resource;
       this.player.play(this.resource);
-
-      // Lautstärke
       this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
-
+      this.currentSongStartTime = Date.now();
     } catch (error) {
-      console.error(`Fehler beim Abspielen des Songs: ${error}`);
+      console.error(`Error playing song: ${error}`);
       this.songs.shift();
-
-      if (this.textChannel) {
-        this.textChannel
-          .send(
-            `Ein Fehler ist aufgetreten beim Abspielen des Songs **${nextSong.title}** und er wurde übersprungen.`
-          )
-          .catch(console.error);
+      if (this.textChannel && this.interaction) {
+        await handleError(this.interaction, error as Error);
       }
     } finally {
       this.queueLock = false;
@@ -253,21 +283,107 @@ export class MusicQueue {
   }
 
   /**
-   * Shuffle the entire queue (including the first position),
+   * Plays an advertisement. This method is called when the advertisement counter
+   * reaches the configured interval. It does not add the advertisement to the queue.
+   */
+  private async playAdvertisement(): Promise<void> {
+    if (config.DEBUG) console.log("[MusicQueue] Advertisement interval reached. Playing advertisement...");
+  
+    // Destructure the returned object from sendAdvertisementEmbed
+    const { message: adMessage, adConfig } = await sendAdvertisementEmbed(this.textChannel);
+  
+    // Get the audio file corresponding to the selected ad configuration
+    const adFilePath = getRandomAudioFileForAd(adConfig);
+    if (!adFilePath) {
+      if (config.DEBUG) console.log("[MusicQueue] No advertisement file available. Skipping ad.");
+      return this.processQueue();
+    }
+  
+    if (adMessage) {
+      const adCollector = adMessage.createMessageComponentCollector({
+        filter: (i: Interaction): i is ButtonInteraction =>
+          i.isButton() && i.message.id === adMessage.id && i.customId === "ad_skip",
+        time: 30000
+      });
+      adCollector.on("collect", async (interaction: ButtonInteraction) => {
+        await this.handleAdSkip(interaction);
+        adCollector.stop();
+      });
+    }
+  
+    try {
+      const adStream = createReadStream(adFilePath);
+      const { createAudioResource } = await import("@discordjs/voice");
+      const adResource = createAudioResource(adStream, {
+        inputType: StreamType.Arbitrary,
+        inlineVolume: true,
+        metadata: { title: "Advertisement" }
+      });
+      this.resource = adResource;
+      this.player.play(this.resource);
+      this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
+      this.currentSongStartTime = Date.now();
+    } catch (error) {
+      console.error("[MusicQueue] Error playing advertisement:", error);
+    }
+  }
+
+  /**
+   * Shuffles the entire queue (including the first position),
    * so that the very first song to play is random.
    */
   public shuffle(): void {
     if (this.songs.length < 2) return;
-
     for (let i = this.songs.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [this.songs[i], this.songs[j]] = [this.songs[j], this.songs[i]];
     }
   }
 
-  // -------------- Buttons (Skip, Pause, etc.) --------------
+  // -------------- Button Handlers --------------
+
   private async handleSkip(interaction: ButtonInteraction): Promise<void> {
     await this.bot.slashCommandsMap.get("skip")!.execute(interaction);
+  }
+
+  /**
+   * Handles the "Skip Ad" button interaction.
+   * This will stop the current advertisement and resume processing the queue.
+   */
+  private async handleAdSkip(interaction: ButtonInteraction): Promise<void> {
+    log(`User ${interaction.user.id} requested to skip the advertisement.`);
+    this.player.stop();
+    await interaction.reply({ content: i18n.__("advertisement.skipped"), ephemeral: true });
+    if (this.songs.length) {
+      this.processQueue();
+    }
+  }
+
+  /**
+   * Handles toggling the favorite status of the current song.
+   */
+  private async handleFavoriteToggler(interaction: ButtonInteraction): Promise<void> {
+    if (!this.resource) {
+      await interaction.reply({ content: i18n.__("favorite.toggle.noSong"), ephemeral: true }).catch(logError);
+      return;
+    }
+    const song = this.resource.metadata as Song;
+    const userId = interaction.user.id;
+    const userFavs = getUserFavorites(userId);
+    try {
+      if (userFavs.includes(song.url)) {
+        removeFavorite(userId, song.url);
+        log(`User ${userId} removed favorite: ${song.title}`);
+        await interaction.reply({ content: i18n.__mf("favorite.toggle.removed", { title: song.title }), ephemeral: true });
+      } else {
+        addFavorite(userId, song.url, song.title);
+        log(`User ${userId} added favorite: ${song.title}`);
+        await interaction.reply({ content: i18n.__mf("favorite.toggle.added", { title: song.title }), ephemeral: true });
+      }
+    } catch (err) {
+      logError("[MusicQueue] Error toggling favorite status:", err as Error);
+      await interaction.reply({ content: i18n.__("favorite.toggle.error"), ephemeral: true }).catch(logError);
+    }
   }
 
   private async handlePlayPause(interaction: ButtonInteraction): Promise<void> {
@@ -280,9 +396,7 @@ export class MusicQueue {
 
   private async handleMute(interaction: ButtonInteraction): Promise<void> {
     if (!canModifyQueue(interaction.member as GuildMember)) return;
-
     this.muted = !this.muted;
-
     if (this.muted) {
       this.resource?.volume?.setVolumeLogarithmic(0);
       safeReply(interaction, i18n.__mf("play.mutedSong", { author: interaction.user })).catch(console.error);
@@ -295,27 +409,17 @@ export class MusicQueue {
   private async handleDecreaseVolume(interaction: ButtonInteraction): Promise<void> {
     if (this.volume === 0) return;
     if (!canModifyQueue(interaction.member as GuildMember)) return;
-
     this.volume = Math.max(this.volume - 10, 0);
     this.resource?.volume?.setVolumeLogarithmic(this.volume / 100);
-
-    safeReply(interaction, i18n.__mf("play.decreasedVolume", {
-      author: interaction.user,
-      volume: this.volume
-    })).catch(console.error);
+    safeReply(interaction, i18n.__mf("play.decreasedVolume", { author: interaction.user, volume: this.volume })).catch(console.error);
   }
 
   private async handleIncreaseVolume(interaction: ButtonInteraction): Promise<void> {
     if (this.volume === 100) return;
     if (!canModifyQueue(interaction.member as GuildMember)) return;
-
     this.volume = Math.min(this.volume + 10, 100);
     this.resource?.volume?.setVolumeLogarithmic(this.volume / 100);
-
-    safeReply(interaction, i18n.__mf("play.increasedVolume", {
-      author: interaction.user,
-      volume: this.volume
-    })).catch(console.error);
+    safeReply(interaction, i18n.__mf("play.increasedVolume", { author: interaction.user, volume: this.volume })).catch(console.error);
   }
 
   private async handleLoop(interaction: ButtonInteraction): Promise<void> {
@@ -330,7 +434,7 @@ export class MusicQueue {
     await this.bot.slashCommandsMap.get("stop")!.execute(interaction);
   }
 
-  private commandHandlers = new Map([
+  private commandHandlers = new Map<string, (interaction: ButtonInteraction) => Promise<void>>([
     ["skip", this.handleSkip],
     ["play_pause", this.handlePlayPause],
     ["mute", this.handleMute],
@@ -338,13 +442,15 @@ export class MusicQueue {
     ["increase_volume", this.handleIncreaseVolume],
     ["loop", this.handleLoop],
     ["shuffle", this.handleShuffle],
-    ["stop", this.handleStop]
+    ["stop", this.handleStop],
+    ["favorite_toggler", this.handleFavoriteToggler],
+    ["ad_skip", this.handleAdSkip]
   ]);
 
-  private createButtonRow() {
+  private createButtonRow(): ActionRowBuilder<ButtonBuilder>[] {
     const firstRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId("skip").setLabel("⏭").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("play_pause").setLabel("⏯").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("skip").setLabel("⏭️").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("play_pause").setLabel("⏯️").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("mute").setLabel("🔇").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("decrease_volume").setLabel("🔉").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("increase_volume").setLabel("🔊").setStyle(ButtonStyle.Secondary)
@@ -352,21 +458,24 @@ export class MusicQueue {
     const secondRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId("loop").setLabel("🔁").setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("shuffle").setLabel("🔀").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("stop").setLabel("⏹").setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId("stop").setLabel("⏹️").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("favorite_toggler").setLabel("🩶").setStyle(ButtonStyle.Secondary)
     );
-
     return [firstRow, secondRow];
   }
 
   /**
    * Sends a message indicating which song is playing, including player controls
-   * as interactive buttons. The message is deleted or buttons removed after end of track.
+   * as interactive buttons. If the current resource does not implement startMessage (e.g. advertisement),
+   * the function will simply return without sending a message.
    */
-  private async sendPlayingMessage(newState: AudioPlayerPlayingState) {
-    const song = (newState.resource as AudioResource<Song>).metadata;
-
+  private async sendPlayingMessage(newState: AudioPlayerPlayingState): Promise<void> {
+    const metadata = newState.resource.metadata;
+    if (typeof (metadata as any).startMessage !== "function") {
+      return;
+    }
+    const song = metadata as Song;
     let playingMessage: Message;
-
     try {
       playingMessage = await this.textChannel.send({
         content: song.startMessage(),
@@ -374,35 +483,28 @@ export class MusicQueue {
       });
     } catch (error: unknown) {
       console.error(error);
-      if (error instanceof Error) this.textChannel.send(error.message);
+      if (error instanceof Error) {
+        await this.textChannel.send(error.message).catch(console.error);
+      }
       return;
     }
-
-    const filter = (i: Interaction) => i.isButton() && i.message.id === playingMessage.id;
+    const filter = (i: Interaction): i is ButtonInteraction =>
+      i.isButton() && i.message.id === playingMessage.id;
     const collector = playingMessage.createMessageComponentCollector({
-      filter,
+      filter: (i: Interaction): i is ButtonInteraction =>
+        i.isButton() && i.message.id === playingMessage.id,
       time: song.duration > 0 ? song.duration * 1000 : 60000
     });
-
-    collector.on("collect", async (interaction) => {
-      if (!interaction.isButton()) return;
-      if (!this.songs) return;
-
+    collector.on("collect", async (interaction: ButtonInteraction) => {
       const handler = this.commandHandlers.get(interaction.customId);
-
-      // skip/stop => collector end
       if (["skip", "stop"].includes(interaction.customId)) collector.stop();
-
       if (handler) await handler.call(this, interaction);
     });
-
     collector.on("end", () => {
       playingMessage.edit({ components: [] }).catch(console.error);
-
-      // ggf. auto-delete
       if (config.PRUNING) {
         setTimeout(() => {
-          playingMessage.delete().catch();
+          playingMessage.delete().catch(() => {});
         }, 3000);
       }
     });
@@ -413,8 +515,8 @@ export class MusicQueue {
     return this.player.state.status === AudioPlayerStatus.Playing;
   }
 
-  // Start playback
-  public play() {
+  // Starts playback by processing the queue
+  public play(): void {
     this.processQueue();
   }
 }
