@@ -192,7 +192,8 @@
 		"cooldownMessage": "Please wait {time} more second(s) before reusing the `{name}` command.",
 		"errorCommand": "There was an error executing that command.",
 		"loading": "⏳ Loading...",
-		"errorCommandWithDetails": "⚠️ An error occurred while executing the command: {error}."
+		"errorCommandWithDetails": "⚠️ An error occurred while executing the command: {error}.",
+		"userBlacklisted": "common.userBlacklisted"
 	},
 	"Invite me to your server!": "Invite me to your server!",
 	"Invite": "Invite",
@@ -215,7 +216,43 @@
 		"error": "stats.error"
 	},
 	"voice": {
-		"inactivityCountdown": "voice.inactivityCountdown",
-		"leftDueToInactivity": "voice.leftDueToInactivity"
+		"inactivityCountdown": "Empty voice channel countdown: {time} seconds.",
+		"leftDueToInactivity": "Left the voice channel due to inactivity."
+	},
+	"favorite": {
+		"description": "Manage your favorite songs.",
+		"add": {
+			"description": "Add a song to your favorites.",
+			"optionSong": "Enter the song URL or type 'current' to add the currently playing song.",
+			"success": "Successfully added **{title}** to your favorites!",
+			"successTitle": "Song Added"
+		},
+		"remove": {
+			"description": "Remove a song from your favorites.",
+			"optionSong": "Enter the song URL to remove.",
+			"success": "Successfully removed **{title}** from your favorites.",
+			"successTitle": "Song Removed"
+		},
+		"list": {
+			"description": "List your favorite songs.",
+			"output": "**Your Favorite Songs:**\n{output}",
+			"title": "Favorites List"
+		},
+		"global": {
+			"description": "Display the most popular favorite songs globally.",
+			"output": "**Global Favorite Songs:**\n{output}",
+			"title": "Global Favorites"
+		},
+		"play": {
+			"description": "Play songs from your favorites.",
+			"optionSource": "Play: 'mine' for yours, 'global' for global, or 'users' for specific.",
+			"optionUsers": "Provide a comma-separated list of user IDs or mentions (only used when source is 'users').",
+			"success": "Queued {count} favorite song(s)!",
+			"successTitle": "Favorites Queued"
+		},
+		"toggle": {
+			"added": "Added **{title}** to your favorites!",
+			"removed": "Removed **{title}** from your favorites!"
+		}
 	}
 }
