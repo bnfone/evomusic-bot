@@ -9,7 +9,7 @@
   "DEFAULT_VOLUME": 50,
   "CLIENT_ID": "",
   "DEBUG": false,
-  "ADVERTISEMENT_INTERVAL": 5,
+  "ADVERTISEMENT_INTERVAL": 25,
   "LOG_TERMINAL": true,
   "LOG_COMMANDS": true,
   "pipedApiUrl": "",
