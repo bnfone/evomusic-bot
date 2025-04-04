@@ -3,7 +3,13 @@ services:
     build: .
     container_name: discord-music-bot
     env_file: .env
+    networks:
+      - discordbot_evomusic
     volumes:
       - ./data:/dist/data
     restart: unless-stopped
 
+networks:
+  discordbot_evomusic:
+    enable_ipv6: true
+    driver: bridge
