@@ -81,8 +81,8 @@ Open `config.json` and update the following fields (or `.env` / `docker-compose.
 - `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`: Your Spotify credentials.
 - `MAX_PLAYLIST_SIZE`, `PRUNING`, `STAY_TIME`, `DEFAULT_VOLUME`, and `LOCALE`: Adjust these settings as desired.
 - `DEBUG` and `ADVERTISEMENT_INTERVAL` can be set to control debugging output and advertisement playback frequency.
-- `pipedApiUrl`: Set this to the base URL of your chosen Piped API instance (e.g., "https://pipedapi.example.com").
-- `usePipedFallback`: Set this to true to enable fallback to the Piped API for stream retrieval if the primary method fails.
+- `PIPED_API_URL`: Set this to the base URL of your chosen Piped API instance (e.g., "https://pipedapi.example.com").
+- `PIPED_FALLBACK`: Set this to true to enable fallback to the Piped API for stream retrieval if the primary method fails.
 
 ⚠️ **Note**: Never commit or share your token or api keys publicly
 
@@ -104,7 +104,7 @@ docker run -d \
   --env DEFAULT_VOLUME=100 \
   --env LOCALE=en \
   --env PIPED_API_URL=https://pipedapi.example.com \
-  --env USE_PIPED_FALLBACK=true \
+  --env PIPED_FALLBACK=true \
   ghcr.io/bnfone/discord-bot-evomusic:latest
 ```
 
@@ -127,7 +127,7 @@ services:
       - DEFAULT_VOLUME=100
       - LOCALE=en
       - PIPED_API_URL=https://pipedapi.example.com
-      - USE_PIPED_FALLBACK=true
+      - PIPED_FALLBACK=true
     restart: always
 ```
 

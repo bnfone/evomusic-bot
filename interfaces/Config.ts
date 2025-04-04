@@ -11,7 +11,7 @@ export interface Config {
   ADVERTISEMENT_INTERVAL?: number;
   LOG_TERMINAL?: boolean;
   LOG_COMMANDS?: boolean;
-  pipedApiUrl?: string;
-  usePipedFallback?: boolean;
+  PIPED_API_URL?: string;
+  PIPED_FALLBACK?: boolean;
   USE_METADATA_EXTRACTION?: boolean;
 }
