@@ -12,6 +12,6 @@
   "ADVERTISEMENT_INTERVAL": 25,
   "LOG_TERMINAL": true,
   "LOG_COMMANDS": true,
-  "pipedApiUrl": "",
+  "PIPED_API_URL": "",
   "usePipedFallback": false
 }

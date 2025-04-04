@@ -94,12 +94,12 @@ export class Song {
       } catch (primaryError) {
         console.error("Fehler beim Abrufen des Streams mit ytdl-core:", primaryError);
         // Attempt fallback only if enabled in config
-        if (config.usePipedFallback && config.pipedApiUrl) {
+        if (config.PIPED_FALLBACK && config.PIPED_API_URL) {
           const videoId = extractYoutubeVideoId(this.url);
           if (videoId) {
             try {
               log(`Attempting Piped API fallback for video ID: ${videoId}`);
-              playStream = await fetchPipedAudioStream(videoId, config.pipedApiUrl);
+              playStream = await fetchPipedAudioStream(videoId, config.PIPED_API_URL);
             } catch (fallbackError) {
               console.error("Fehler beim Abrufen des Streams via Piped API:", fallbackError);
               return;
