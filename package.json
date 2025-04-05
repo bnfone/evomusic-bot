@@ -21,13 +21,13 @@
   },
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
+    "@distube/ytdl-core": "github:ToddyTheNoobDud/ytdl-core-stuff",
     "array-move": "^3.0.1",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "ffmpeg-static": "^4.4.1",
     "i18n": "^0.15.1",
     "lyrics-finder": "^21.0.5",
-    "play-dl": "^1.9.7",
     "soundcloud-downloader": "^0.2.3",
     "string-progressbar": "^1.0.4",
     "youtube-sr": "~4.3.0"
