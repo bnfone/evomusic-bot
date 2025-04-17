@@ -197,7 +197,7 @@ export class MusicQueue {
       if (this.interaction) {
         await handleError(this.interaction, error);
       } else {
-        this.textChannel.send(i18n.__("common.errorCommand")).catch(console.error);
+        this.textChannel.send(i18n.__("common.errorCommand")).catch(err => logError('[MusicQueue] common.errorCommand send error', err));
       }
       if (this.loop && this.songs.length) {
         this.songs.push(this.songs.shift()!);
@@ -231,7 +231,7 @@ export class MusicQueue {
     this.songs = [];
     this.player.stop();
     if (!config.PRUNING) {
-      this.textChannel.send(i18n.__("play.queueEnded")).catch(console.error);
+      this.textChannel.send(i18n.__("play.queueEnded")).catch(err => logError('[MusicQueue] queueEnded send error', err));
     }
     if (this.waitTimeout !== null) return;
     this.waitTimeout = setTimeout(() => {
@@ -242,7 +242,9 @@ export class MusicQueue {
       }
       bot.queues.delete(this.interaction.guild!.id);
       if (!config.PRUNING) {
-        this.textChannel.send(i18n.__("play.leaveChannel"));
+        const leaveTime = config.STAY_TIME;
+        this.textChannel.send(i18n.__mf("play.leaveChannel", { time: leaveTime }))
+          .catch(err => logError('[MusicQueue] leaveChannel send error', err));
       }
     }, config.STAY_TIME * 1000);
   }

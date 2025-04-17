@@ -47,7 +47,9 @@ export async function getAppleMusicSongData(songUrl: string): Promise<{ title: s
     const country = pathParts[0] || "us";
     standardizedUrl = `https://music.apple.com/${country}/song/${songIdFromQuery}`;
   } else {
-    // Fallback: use regex to extract the song ID from the URL path.
+    // Fallback: extract country and song ID from the URL path.
+    const pathParts = urlObj.pathname.split("/").filter(p => p);
+    const country = pathParts[0] || "us";
     const songIdRegex = /\/song\/(?:[^\/]+\/)?(\d+)/;
     const match = songUrl.match(songIdRegex);
     if (!match) {
@@ -55,7 +57,7 @@ export async function getAppleMusicSongData(songUrl: string): Promise<{ title: s
       return { title: "Unknown", artist: "Unknown", standardizedUrl: songUrl };
     }
     const songId = match[1];
-    standardizedUrl = `https://music.apple.com/de/song/${songId}`;
+    standardizedUrl = `https://music.apple.com/${country}/song/${songId}`;
   }
 
   // Check the cache for this standardized URL.

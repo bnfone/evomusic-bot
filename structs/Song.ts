@@ -5,7 +5,7 @@ import { videoPattern, isURL } from "../utils/patterns";
 import { config } from "../utils/config";
 import { extractYoutubeVideoId, fetchPipedAudioStream } from "../utils/piped";
 import { Readable } from "stream";
-import { log } from "../utils/logger";
+import { log, error as logError } from "../utils/logger";
 
 const ytdl = require('@distube/ytdl-core');
 
@@ -36,7 +36,7 @@ export class Song {
         songInfo = await ytdl.getBasicInfo(url);
         // Only log the YouTube link
       } catch (error) {
-        console.error("Fehler beim Abrufen der Song-Info:", error);
+      logError('[Song] Error fetching song info', error as Error);
         throw error;
       }
 
@@ -59,7 +59,7 @@ export class Song {
         songInfo = await ytdl.getBasicInfo(`https://youtube.com/watch?v=${result.id}`);
         // Only log the YouTube link
       } catch (error) {
-        console.error("Fehler beim Abrufen der Song-Info (Suche):", error);
+        logError('[Song] Error fetching song info (search)', error as Error);
         throw error;
       }
 
@@ -75,7 +75,7 @@ export class Song {
     let playStream;
 
     if (!this.url) {
-      console.error("URL ist undefined oder null.");
+      logError('[Song] URL is undefined or null');
       return;
     }
 
@@ -92,7 +92,7 @@ export class Song {
           stream.once("response", () => resolve(stream));
         });
       } catch (primaryError) {
-        console.error("Fehler beim Abrufen des Streams mit ytdl-core:", primaryError);
+        logError('[Song] Error fetching stream with ytdl-core', primaryError as Error);
         // Attempt fallback only if enabled in config
         if (config.PIPED_FALLBACK && config.PIPED_API_URL) {
           const videoId = extractYoutubeVideoId(this.url);
@@ -101,11 +101,11 @@ export class Song {
               log(`Attempting Piped API fallback for video ID: ${videoId}`);
               playStream = await fetchPipedAudioStream(videoId, config.PIPED_API_URL);
             } catch (fallbackError) {
-              console.error("Fehler beim Abrufen des Streams via Piped API:", fallbackError);
+              logError('[Song] Error fetching piped API stream', fallbackError as Error);
               return;
             }
           } else {
-            console.error("Konnte Video-ID aus URL nicht extrahieren:", this.url);
+            logError('[Song] Could not extract video ID from URL', new Error(this.url));
             return;
           }
         } else {
@@ -117,7 +117,7 @@ export class Song {
     }
 
     if (!playStream) {
-      console.error("Stream konnte nicht abgerufen werden.");
+      logError('[Song] Stream could not be retrieved');
       return;
     }
 

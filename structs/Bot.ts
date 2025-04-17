@@ -39,7 +39,7 @@ export class Bot {
     this.client.login(config.TOKEN);
 
     this.client.on("ready", async () => {
-      console.log(`${this.client.user!.username} ready!`);
+      log(`[Bot] ${this.client.user!.username} is ready!`);
 
       // Set the bot's presence.
       this.client.user!.setPresence({
@@ -59,8 +59,8 @@ export class Bot {
       registerVoiceListeners(this.client, this.queues);
     });
 
-    this.client.on("warn", (info) => console.log(info));
-    this.client.on("error", console.error);
+    this.client.on("warn", (info) => log(`[Client Warn] ${info}`));
+    this.client.on("error", (err) => logError('[Client Error]', err as Error));
 
     // Setup global interaction handler.
     this.onInteractionCreate();

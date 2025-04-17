@@ -77,7 +77,7 @@
     "increasedVolume": "<@{author}> 🔊 hat die Lautstärke erhöht. Die Lautstärke ist jetzt {volume}%",
     "loopSong": "<@{author}> Wiederholung ist jetzt {loop}",
     "stopSong": "<@{author}> ⏹ hat die Musik gestoppt!",
-    "leaveChannel": "Verlasse den Sprachkanal...",
+    "leaveChannel": "Verlasse den Sprachkanal in {time} Sekunden...",
     "songNotFound": "Audio nicht gefunden",
     "songAccessErr": "Video ist altersbeschränkt, privat oder nicht verfügbar",
     "errorNoResults": "Keine Ergebnisse für {url} gefunden",
