@@ -39,8 +39,8 @@
     "youtube-sr": "^4.3.11"
   },
   "devDependencies": {
+    "@types/cheerio": "^0.22.35",
     "@types/i18n": "^0.13.12",
-    "@types/cheerio": "^0.22.30",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.14.0",
     "@types/tough-cookie": "^4.0.5",
