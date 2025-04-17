@@ -34,6 +34,7 @@
     "soundcloud-downloader": "^0.2.3",
     "string-progressbar": "^1.0.4",
     "tar": "^7.4.3",
+    "uuid": "^11.1.0",
     "ws": "^8.18.1",
     "youtube-dl-exec": "^3.0.20",
     "youtube-sr": "^4.3.11"

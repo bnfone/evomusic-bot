@@ -77,7 +77,7 @@
 		"increasedVolume": "<@{author}> 🔊 increased the volume. The volume is now {volume}%.",
 		"loopSong": "<@{author}> Loop is now {loop}.",
 		"stopSong": "<@{author}> ⏹ stopped the music!",
-        "leaveChannel": "Leaving voice channel in {time} seconds...",
+		"leaveChannel": "Leaving voice channel...",
 		"songNotFound": "Audio Not Found.",
 		"songAccessErr": "Video is age restricted, private, or unavailable.",
 		"errorNoResults": "No results found for {url}.",
@@ -108,7 +108,8 @@
 		"addedAppleSongs": "{count} Apple Music songs have been added to the queue.",
 		"addedYoutubeSongs": "{count} YouTube songs have been added to the queue.",
 		"errorAppleGeneric": "There was an error fetching the Apple Music playlist.",
-		"errorSpotifyGeneric": "There was an error fetching the Spotify playlist."
+		"errorSpotifyGeneric": "There was an error fetching the Spotify playlist.",
+		"addedSongs": "playlist.addedSongs"
 	},
 	"pruning": {
 		"description": "Toggle pruning of bot messages",
@@ -257,5 +258,10 @@
 	},
 	"advertisement": {
 		"skipped": "Skipped the advertisement."
+	},
+	"error": {
+		"title": "An error occurred",
+		"description": "Whoops! Something went wrong:\n> {error}\nPlease report this issue if it persists.",
+		"reportButton": "Report Issue on GitHub"
 	}
 }

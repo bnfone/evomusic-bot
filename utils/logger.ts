@@ -1,6 +1,9 @@
+// File: utils/logger.ts
+
 import fs from 'fs';
 import path from 'path';
-import { config } from '../utils/config';
+// Da wir uns schon in utils/ befinden, geht’s direkt auf config.ts
+import { config } from './config';
 
 // =======================
 // General Logging Section
@@ -20,7 +23,7 @@ const logFile = path.join(logsDir, `${new Date().toISOString().split('T')[0]}.lo
  * If config.LOG_TERMINAL is enabled, the log message is also printed to the terminal.
  * @param message The message to log.
  */
-export function log(message: string): void {
+function info(message: string): void {
   const timestamp = new Date().toISOString();
   const logEntry = `[${timestamp}] ${message}\n`;
   try {
@@ -30,7 +33,7 @@ export function log(message: string): void {
     console.error("Failed to write log:", err);
   }
   if (config.LOG_TERMINAL) {
-    console.log(logEntry);
+    console.log(logEntry.trim());
   }
 }
 
@@ -40,21 +43,26 @@ export function log(message: string): void {
  * @param message The error message.
  * @param err Optional Error object.
  */
-export function error(message: string, err?: Error): void {
+function error(message: string, err?: Error): void {
   const fullError = `${message}${err ? ' - ' + err.stack : ''}`;
-  log(fullError);
-  // Print only a short explanation to the console
+  // Schreibe Stacktrace ins File
+  info(fullError);
+  // Und nur die Kurzfassung auf die Konsole
   console.error(`${message}${err ? ' - ' + err.message : ''}`);
 }
 
 /**
- * Logs the usage of a command with its parameters.
- * This entry is appended to the same general log file.
+ * Logs the usage of a command mit User‑ID und Parametern.
  * @param userId The ID of the user executing the command.
  * @param command The command name.
  * @param parameters Optional parameters sent with the command.
  */
-export function logCommandUsage(userId: string, command: string, parameters?: any): void {
-  const entryMessage = `Command: ${command} executed by ${userId} with parameters: ${JSON.stringify(parameters)}`;
-  log(entryMessage);
+function logCommandUsage(userId: string, command: string, parameters?: any): void {
+  const entryMessage = `Command: ${command} executed by ${userId}` +
+    (parameters ? ` with parameters: ${JSON.stringify(parameters)}` : '');
+  info(entryMessage);
 }
+
+// Wir stellen sowohl einen Named‑Export als auch den Default‑Export bereit:
+export const logger = { info, error, logCommandUsage };
+export default logger;
