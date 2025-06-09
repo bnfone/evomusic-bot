@@ -23,7 +23,7 @@
     "@discordjs/voice": "^0.18.0",
     "@distube/ytdl-core": "^4.16.8",
     "array-move": "^3.0.0",
-    "cheerio": "^1.0.0",
+    "cheerio": "^1.1.0",
     "cross-spawn": "^7.0.6",
     "discord.js": "^14.18.0",
     "dotenv": "^16.5.0",
